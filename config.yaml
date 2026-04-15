@@ -1,0 +1,5 @@
+app:
+  kis:
+    base_url: "https://openapi.koreainvestment.com:9443/"
+    account_num: "64409147"
+    account_code: "01"
