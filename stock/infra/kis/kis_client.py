@@ -1,6 +1,7 @@
 from config import settings
 
 from stock.domain.account import Position, Account, AccountSummary
+from stock.domain.stock import Stock
 from stock.domain.adapter.api_client import IApiClient
 from stock.infra.kis.kis_http_client import api_get
 
@@ -41,4 +42,31 @@ class KISClient(IApiClient):
         return AccountSummary(
             positions=positions,
             accounts=accounts,
+        )
+
+    def get_stock_info(self, market: str, code: str) -> Stock:
+        path = "/uapi/domestic-stock/v1/quotations/inquire-price-2"
+        params = {
+            "FID_COND_MRKT_DIV_CODE": market,
+            "FID_INPUT_ISCD": code,
+        }
+        resp = api_get(path=path, params=params, tr_id="FHPST01010000")
+        stock_info = resp.json()["output"]
+
+        return Stock(
+            market_name=stock_info["rprs_mrkt_kor_name"],
+            code=stock_info["bstp_cls_code"],
+            industry=stock_info["bstp_kor_isnm"],
+            open_price=stock_info["stck_oprc"],
+            current_price=stock_info["stck_prpr"],
+            previous_price=stock_info["stck_prdy_clpr"],
+            highest_price=stock_info["stck_hgpr"],
+            lowest_price=stock_info["stck_lwpr"],
+            upper_limit_price=stock_info["stck_mxpr"],
+            lower_limit_price=stock_info["stck_llam"],
+            current_volume=stock_info["acml_vol"],
+            previous_volume=stock_info["prdy_vol"],
+            current_trading_value=stock_info["acml_tr_pbmn"],
+            price_diff=stock_info["prdy_vrss"],
+            price_diff_rate=stock_info["prdy_ctrt"],
         )
