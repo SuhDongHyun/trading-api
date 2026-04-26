@@ -1,9 +1,26 @@
 from config import settings
 
 from stock.domain.account import Position, Account, AccountSummary
-from stock.domain.stock import Stock
+from stock.domain.stock import (
+    DailyStockPrice,
+    DailyStockPriceResult,
+    DailyStockPriceSummary,
+    Stock,
+)
 from stock.domain.adapter.api_client import IApiClient
 from stock.infra.kis.kis_http_client import api_get
+
+
+def _to_float(value: str | int | float | None) -> float:
+    if value in (None, ""):
+        return 0.0
+    return float(value)
+
+
+def _to_int(value: str | int | float | None) -> int:
+    if value in (None, ""):
+        return 0
+    return int(float(value))
 
 
 class KISClient(IApiClient):
@@ -69,4 +86,48 @@ class KISClient(IApiClient):
             current_trading_value=stock_info["acml_tr_pbmn"],
             price_diff=stock_info["prdy_vrss"],
             price_diff_rate=stock_info["prdy_ctrt"],
+        )
+
+    def get_daily_stock_prices(
+        self,
+        market: str,
+        code: str,
+        start_date: str,
+        end_date: str,
+        period: str,
+        adjusted_price: bool = True,
+    ) -> DailyStockPriceResult:
+        path = "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
+        params = {
+            "FID_COND_MRKT_DIV_CODE": market,
+            "FID_INPUT_ISCD": code,
+            "FID_INPUT_DATE_1": start_date,
+            "FID_INPUT_DATE_2": end_date,
+            "FID_PERIOD_DIV_CODE": period,
+            "FID_ORG_ADJ_PRC": "0" if adjusted_price else "1",
+        }
+        resp = api_get(path=path, params=params, tr_id="FHKST03010100")
+        body = resp.json()
+        summary = body["output1"]
+
+        return DailyStockPriceResult(
+            summary=DailyStockPriceSummary(
+                name=summary["hts_kor_isnm"],
+                code=summary["stck_shrn_iscd"],
+            ),
+            prices=[
+                DailyStockPrice(
+                    date=price["stck_bsop_date"],
+                    open_price=_to_float(price["stck_oprc"]),
+                    high_price=_to_float(price["stck_hgpr"]),
+                    low_price=_to_float(price["stck_lwpr"]),
+                    close_price=_to_float(price["stck_clpr"]),
+                    accumulated_volume=_to_int(price["acml_vol"]),
+                    accumulated_trading_value=_to_float(price["acml_tr_pbmn"]),
+                    price_diff=_to_float(price["prdy_vrss"]),
+                    price_diff_sign=price["prdy_vrss_sign"],
+                    change_flag=price["mod_yn"],
+                )
+                for price in body["output2"]
+            ],
         )
