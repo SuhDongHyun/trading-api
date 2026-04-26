@@ -7,6 +7,9 @@ from stock.interface.schema.stock_quote import (
     DailyStockPriceResponse,
     DailyStockPriceResultResponse,
     DailyStockPriceSummaryResponse,
+    SlowStochasticRequest,
+    SlowStochasticResultResponse,
+    SlowStochasticValueResponse,
     StockInfoRequest,
     StockInfoResponse,
 )
@@ -80,5 +83,41 @@ def get_daily_stock_prices(
                 change_flag=price.change_flag,
             )
             for price in daily_prices.prices
+        ],
+    )
+
+
+@router.post("/indicator/slow-stochastic", response_model=SlowStochasticResultResponse)
+@inject
+def get_slow_stochastic(
+    request: SlowStochasticRequest,
+    stock_quote_service: StockQuoteService = Depends(
+        Provide[Container.stock_quote_service]
+    ),
+):
+    indicator = stock_quote_service.get_slow_stochastic(
+        market=request.market,
+        code=request.code,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        period=request.period,
+        adjusted_price=request.adjusted_price,
+        k_period=request.k_period,
+        k_smoothing_period=request.k_smoothing_period,
+        d_period=request.d_period,
+    )
+
+    return SlowStochasticResultResponse(
+        summary=DailyStockPriceSummaryResponse(
+            name=indicator.summary.name,
+            code=indicator.summary.code,
+        ),
+        values=[
+            SlowStochasticValueResponse(
+                date=value.date,
+                slow_k=value.slow_k,
+                slow_d=value.slow_d,
+            )
+            for value in indicator.values
         ],
     )

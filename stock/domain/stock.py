@@ -44,3 +44,16 @@ class DailyStockPrice:
 class DailyStockPriceResult:
     summary: DailyStockPriceSummary
     prices: list[DailyStockPrice]
+
+
+@dataclass
+class SlowStochasticValue:
+    date: str
+    slow_k: float
+    slow_d: float
+
+
+@dataclass
+class SlowStochasticResult:
+    summary: DailyStockPriceSummary
+    values: list[SlowStochasticValue]
