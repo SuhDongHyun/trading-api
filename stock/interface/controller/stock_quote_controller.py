@@ -7,6 +7,9 @@ from stock.interface.schema.stock_quote import (
     DailyStockPriceResponse,
     DailyStockPriceResultResponse,
     DailyStockPriceSummaryResponse,
+    RsiRequest,
+    RsiResultResponse,
+    RsiValueResponse,
     SlowStochasticRequest,
     SlowStochasticResultResponse,
     SlowStochasticValueResponse,
@@ -117,6 +120,39 @@ def get_slow_stochastic(
                 date=value.date,
                 slow_k=value.slow_k,
                 slow_d=value.slow_d,
+            )
+            for value in indicator.values
+        ],
+    )
+
+
+@router.post("/indicator/rsi", response_model=RsiResultResponse)
+@inject
+def get_rsi(
+    request: RsiRequest,
+    stock_quote_service: StockQuoteService = Depends(
+        Provide[Container.stock_quote_service]
+    ),
+):
+    indicator = stock_quote_service.get_rsi(
+        market=request.market,
+        code=request.code,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        period=request.period,
+        adjusted_price=request.adjusted_price,
+        rsi_period=request.rsi_period,
+    )
+
+    return RsiResultResponse(
+        summary=DailyStockPriceSummaryResponse(
+            name=indicator.summary.name,
+            code=indicator.summary.code,
+        ),
+        values=[
+            RsiValueResponse(
+                date=value.date,
+                rsi=value.rsi,
             )
             for value in indicator.values
         ],
