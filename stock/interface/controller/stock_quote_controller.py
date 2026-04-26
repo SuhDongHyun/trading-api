@@ -7,6 +7,9 @@ from stock.interface.schema.stock_quote import (
     DailyStockPriceResponse,
     DailyStockPriceResultResponse,
     DailyStockPriceSummaryResponse,
+    OverboughtOversoldRequest,
+    OverboughtOversoldResultResponse,
+    OverboughtOversoldValueResponse,
     RsiRequest,
     RsiResultResponse,
     RsiValueResponse,
@@ -155,5 +158,51 @@ def get_rsi(
                 rsi=value.rsi,
             )
             for value in indicator.values
+        ],
+    )
+
+
+@router.post(
+    "/indicator/overbought-oversold",
+    response_model=OverboughtOversoldResultResponse,
+)
+@inject
+def get_overbought_oversold(
+    request: OverboughtOversoldRequest,
+    stock_quote_service: StockQuoteService = Depends(
+        Provide[Container.stock_quote_service]
+    ),
+):
+    signal = stock_quote_service.get_overbought_oversold(
+        market=request.market,
+        code=request.code,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        period=request.period,
+        adjusted_price=request.adjusted_price,
+        rsi_period=request.rsi_period,
+        stochastic_k_period=request.stochastic_k_period,
+        stochastic_k_smoothing_period=request.stochastic_k_smoothing_period,
+        stochastic_d_period=request.stochastic_d_period,
+        rsi_overbought_threshold=request.rsi_overbought_threshold,
+        rsi_oversold_threshold=request.rsi_oversold_threshold,
+        stochastic_overbought_threshold=request.stochastic_overbought_threshold,
+        stochastic_oversold_threshold=request.stochastic_oversold_threshold,
+    )
+
+    return OverboughtOversoldResultResponse(
+        summary=DailyStockPriceSummaryResponse(
+            name=signal.summary.name,
+            code=signal.summary.code,
+        ),
+        values=[
+            OverboughtOversoldValueResponse(
+                date=value.date,
+                rsi=value.rsi,
+                slow_k=value.slow_k,
+                slow_d=value.slow_d,
+                signal=value.signal,
+            )
+            for value in signal.values
         ],
     )
