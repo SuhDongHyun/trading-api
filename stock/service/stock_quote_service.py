@@ -1,5 +1,10 @@
 from stock.domain.adapter.api_client import IApiClient
-from stock.domain.stock import SlowStochasticResult, SlowStochasticValue
+from stock.domain.stock import (
+    RsiResult,
+    RsiValue,
+    SlowStochasticResult,
+    SlowStochasticValue,
+)
 
 
 def _simple_moving_average(values: list[float], period: int) -> float:
@@ -87,3 +92,65 @@ class StockQuoteService:
             )
 
         return SlowStochasticResult(summary=daily_prices.summary, values=values)
+
+    def get_rsi(
+        self,
+        market: str,
+        code: str,
+        start_date: str,
+        end_date: str,
+        period: str,
+        adjusted_price: bool = True,
+        rsi_period: int = 14,
+    ):
+        daily_prices = self.get_daily_stock_prices(
+            market=market,
+            code=code,
+            start_date=start_date,
+            end_date=end_date,
+            period=period,
+            adjusted_price=adjusted_price,
+        )
+        prices = sorted(daily_prices.prices, key=lambda price: price.date)
+        values: list[RsiValue] = []
+
+        if len(prices) <= rsi_period:
+            return RsiResult(summary=daily_prices.summary, values=values)
+
+        changes = [
+            prices[index].close_price - prices[index - 1].close_price
+            for index in range(1, len(prices))
+        ]
+        gains = [max(change, 0.0) for change in changes]
+        losses = [abs(min(change, 0.0)) for change in changes]
+
+        average_gain = sum(gains[:rsi_period]) / rsi_period
+        average_loss = sum(losses[:rsi_period]) / rsi_period
+        values.append(
+            RsiValue(
+                date=prices[rsi_period].date,
+                rsi=self._calculate_rsi(average_gain, average_loss),
+            )
+        )
+
+        for index in range(rsi_period, len(changes)):
+            average_gain = (
+                (average_gain * (rsi_period - 1)) + gains[index]
+            ) / rsi_period
+            average_loss = (
+                (average_loss * (rsi_period - 1)) + losses[index]
+            ) / rsi_period
+            values.append(
+                RsiValue(
+                    date=prices[index + 1].date,
+                    rsi=self._calculate_rsi(average_gain, average_loss),
+                )
+            )
+
+        return RsiResult(summary=daily_prices.summary, values=values)
+
+    def _calculate_rsi(self, average_gain: float, average_loss: float) -> float:
+        if average_loss == 0:
+            return 100.0
+        relative_strength = average_gain / average_loss
+        return 100 - (100 / (1 + relative_strength))

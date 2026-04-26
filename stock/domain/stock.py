@@ -57,3 +57,15 @@ class SlowStochasticValue:
 class SlowStochasticResult:
     summary: DailyStockPriceSummary
     values: list[SlowStochasticValue]
+
+
+@dataclass
+class RsiValue:
+    date: str
+    rsi: float
+
+
+@dataclass
+class RsiResult:
+    summary: DailyStockPriceSummary
+    values: list[RsiValue]

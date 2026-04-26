@@ -77,3 +77,23 @@ class SlowStochasticValueResponse(BaseModel):
 class SlowStochasticResultResponse(BaseModel):
     summary: DailyStockPriceSummaryResponse
     values: list[SlowStochasticValueResponse]
+
+
+class RsiRequest(BaseModel):
+    market: str = "J"
+    code: str
+    start_date: str
+    end_date: str
+    period: str = "D"
+    adjusted_price: bool = True
+    rsi_period: int = 14
+
+
+class RsiValueResponse(BaseModel):
+    date: str
+    rsi: float
+
+
+class RsiResultResponse(BaseModel):
+    summary: DailyStockPriceSummaryResponse
+    values: list[RsiValueResponse]
