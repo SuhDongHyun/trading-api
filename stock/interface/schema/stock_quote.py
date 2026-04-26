@@ -97,3 +97,33 @@ class RsiValueResponse(BaseModel):
 class RsiResultResponse(BaseModel):
     summary: DailyStockPriceSummaryResponse
     values: list[RsiValueResponse]
+
+
+class OverboughtOversoldRequest(BaseModel):
+    market: str = "J"
+    code: str
+    start_date: str
+    end_date: str
+    period: str = "D"
+    adjusted_price: bool = True
+    rsi_period: int = 14
+    stochastic_k_period: int = 14
+    stochastic_k_smoothing_period: int = 3
+    stochastic_d_period: int = 3
+    rsi_overbought_threshold: float = 70.0
+    rsi_oversold_threshold: float = 30.0
+    stochastic_overbought_threshold: float = 80.0
+    stochastic_oversold_threshold: float = 20.0
+
+
+class OverboughtOversoldValueResponse(BaseModel):
+    date: str
+    rsi: float
+    slow_k: float
+    slow_d: float
+    signal: str
+
+
+class OverboughtOversoldResultResponse(BaseModel):
+    summary: DailyStockPriceSummaryResponse
+    values: list[OverboughtOversoldValueResponse]

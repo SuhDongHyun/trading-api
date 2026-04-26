@@ -69,3 +69,18 @@ class RsiValue:
 class RsiResult:
     summary: DailyStockPriceSummary
     values: list[RsiValue]
+
+
+@dataclass
+class OverboughtOversoldValue:
+    date: str
+    rsi: float
+    slow_k: float
+    slow_d: float
+    signal: str
+
+
+@dataclass
+class OverboughtOversoldResult:
+    summary: DailyStockPriceSummary
+    values: list[OverboughtOversoldValue]
