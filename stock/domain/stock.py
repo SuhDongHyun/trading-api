@@ -18,3 +18,29 @@ class Stock:
     current_trading_value: float
     price_diff: float
     price_diff_rate: float
+
+
+@dataclass
+class DailyStockPriceSummary:
+    name: str
+    code: str
+
+
+@dataclass
+class DailyStockPrice:
+    date: str
+    open_price: float
+    high_price: float
+    low_price: float
+    close_price: float
+    accumulated_volume: int
+    accumulated_trading_value: float
+    price_diff: float
+    price_diff_sign: str
+    change_flag: str
+
+
+@dataclass
+class DailyStockPriceResult:
+    summary: DailyStockPriceSummary
+    prices: list[DailyStockPrice]
