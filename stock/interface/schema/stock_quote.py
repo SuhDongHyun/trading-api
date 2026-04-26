@@ -22,3 +22,35 @@ class StockInfoResponse(BaseModel):
     current_trading_value: float
     price_diff: float
     price_diff_rate: float
+
+
+class DailyStockPriceRequest(BaseModel):
+    market: str = "J"
+    code: str
+    start_date: str
+    end_date: str
+    period: str = "D"
+    adjusted_price: bool = True
+
+
+class DailyStockPriceSummaryResponse(BaseModel):
+    name: str
+    code: str
+
+
+class DailyStockPriceResponse(BaseModel):
+    date: str
+    open_price: float
+    high_price: float
+    low_price: float
+    close_price: float
+    accumulated_volume: int
+    accumulated_trading_value: float
+    price_diff: float
+    price_diff_sign: str
+    change_flag: str
+
+
+class DailyStockPriceResultResponse(BaseModel):
+    summary: DailyStockPriceSummaryResponse
+    prices: list[DailyStockPriceResponse]
