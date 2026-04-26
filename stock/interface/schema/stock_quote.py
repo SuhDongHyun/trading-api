@@ -54,3 +54,26 @@ class DailyStockPriceResponse(BaseModel):
 class DailyStockPriceResultResponse(BaseModel):
     summary: DailyStockPriceSummaryResponse
     prices: list[DailyStockPriceResponse]
+
+
+class SlowStochasticRequest(BaseModel):
+    market: str = "J"
+    code: str
+    start_date: str
+    end_date: str
+    period: str = "D"
+    adjusted_price: bool = True
+    k_period: int = 14
+    k_smoothing_period: int = 3
+    d_period: int = 3
+
+
+class SlowStochasticValueResponse(BaseModel):
+    date: str
+    slow_k: float
+    slow_d: float
+
+
+class SlowStochasticResultResponse(BaseModel):
+    summary: DailyStockPriceSummaryResponse
+    values: list[SlowStochasticValueResponse]
