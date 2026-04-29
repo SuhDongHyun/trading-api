@@ -15,12 +15,16 @@ from stock.domain.stock import (
 
 
 def _simple_moving_average(values: list[float], period: int) -> float:
+    """입력 목록의 마지막 period개 값으로 단순 이동평균을 계산한다."""
+
     return sum(values[-period:]) / period
 
 
 def _calculate_history_lookup_start_date(
     start_date: str, window: int, period: str
 ) -> str:
+    """이동평균 계산에 필요한 선행 시세를 넉넉히 조회할 시작일을 추정한다."""
+
     days_by_period = {
         "D": 2,
         "W": 7,
@@ -33,12 +37,16 @@ def _calculate_history_lookup_start_date(
 
 
 def _previous_date(date: str) -> str:
+    """YYYYMMDD 문자열 기준으로 하루 전 날짜를 반환한다."""
+
     return (datetime.strptime(date, "%Y%m%d").date() - timedelta(days=1)).strftime(
         "%Y%m%d"
     )
 
 
 class StockQuoteService:
+    """시세 조회 결과를 기반으로 기술적 지표와 매매 참고 신호를 계산한다."""
+
     def __init__(self, api_client: IApiClient):
         self.api_client = api_client
 
@@ -186,6 +194,8 @@ class StockQuoteService:
         k_smoothing_period: int,
         d_period: int,
     ) -> list[SlowStochasticValue]:
+        """가격 시계열에서 raw K, slow K, slow D 순서로 Stochastic 값을 만든다."""
+
         sorted_prices = sorted(prices, key=lambda price: price.date)
         raw_k_values: list[float] = []
         slow_k_values: list[float] = []
@@ -228,6 +238,8 @@ class StockQuoteService:
         prices: list[DailyStockPrice],
         rsi_period: int,
     ) -> list[RsiValue]:
+        """Wilder 방식의 평균 상승/하락폭을 사용해 RSI 시계열을 계산한다."""
+
         sorted_prices = sorted(prices, key=lambda price: price.date)
         values: list[RsiValue] = []
 
@@ -308,6 +320,8 @@ class StockQuoteService:
         window: int,
         start_date: str,
     ):
+        """요청 시작일의 이동평균까지 계산되도록 과거 가격을 추가 조회한다."""
+
         prices_by_date: dict[str, DailyStockPrice] = {}
         chunk_end_date = end_date
         previous_oldest_date = None
@@ -366,6 +380,8 @@ class StockQuoteService:
         start_date: str,
         window: int,
     ) -> bool:
+        """요청 구간 첫 날짜 앞에 window만큼의 가격 이력이 확보됐는지 확인한다."""
+
         sorted_prices = sorted(prices, key=lambda price: price.date)
         first_requested_index = next(
             (
@@ -386,6 +402,8 @@ class StockQuoteService:
         end_date: str,
         window: int,
     ) -> list[MovingAverageValue]:
+        """조회한 가격 목록에서 요청 구간만 잘라 이동평균 값을 붙인다."""
+
         sorted_prices = sorted(prices, key=lambda price: price.date)
         values: list[MovingAverageValue] = []
 
@@ -418,6 +436,8 @@ class StockQuoteService:
         return values
 
     def _calculate_rsi(self, average_gain: float, average_loss: float) -> float:
+        """평균 상승폭과 하락폭으로 단일 RSI 값을 계산한다."""
+
         if average_loss == 0:
             return 100.0
         relative_strength = average_gain / average_loss
@@ -433,6 +453,8 @@ class StockQuoteService:
         stochastic_overbought_threshold: float,
         stochastic_oversold_threshold: float,
     ) -> str:
+        """RSI 또는 Stochastic 임계값을 넘는지에 따라 신호를 분류한다."""
+
         if (
             rsi >= rsi_overbought_threshold
             or slow_k >= stochastic_overbought_threshold
