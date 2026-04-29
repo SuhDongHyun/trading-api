@@ -72,6 +72,27 @@ class RsiResult:
 
 
 @dataclass
+class MovingAverageValue:
+    date: str
+    open_price: float
+    high_price: float
+    low_price: float
+    close_price: float
+    accumulated_volume: int
+    accumulated_trading_value: float
+    price_diff: float
+    price_diff_sign: str
+    change_flag: str
+    moving_average: float | None
+
+
+@dataclass
+class MovingAverageResult:
+    summary: DailyStockPriceSummary
+    values: list[MovingAverageValue]
+
+
+@dataclass
 class OverboughtOversoldValue:
     date: str
     rsi: float

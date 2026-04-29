@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class StockInfoRequest(BaseModel):
@@ -97,6 +97,35 @@ class RsiValueResponse(BaseModel):
 class RsiResultResponse(BaseModel):
     summary: DailyStockPriceSummaryResponse
     values: list[RsiValueResponse]
+
+
+class MovingAverageRequest(BaseModel):
+    market: str = "J"
+    code: str
+    start_date: str
+    end_date: str
+    period: str = "D"
+    adjusted_price: bool = True
+    window: int = Field(default=20, gt=0)
+
+
+class MovingAverageValueResponse(BaseModel):
+    date: str
+    open_price: float
+    high_price: float
+    low_price: float
+    close_price: float
+    accumulated_volume: int
+    accumulated_trading_value: float
+    price_diff: float
+    price_diff_sign: str
+    change_flag: str
+    moving_average: float | None
+
+
+class MovingAverageResultResponse(BaseModel):
+    summary: DailyStockPriceSummaryResponse
+    values: list[MovingAverageValueResponse]
 
 
 class OverboughtOversoldRequest(BaseModel):
