@@ -11,6 +11,8 @@ from pydantic_settings import (
 
 
 class YamlSettingSource(PydanticBaseSettingsSource):
+    """config.yaml의 app 섹션을 Pydantic Settings 입력으로 변환한다."""
+
     def __init__(
         self, settings_cls: type[BaseSettings], yaml_file: str = "config.yaml"
     ):
@@ -35,6 +37,8 @@ class YamlSettingSource(PydanticBaseSettingsSource):
 
 
 class KISSetting(BaseModel):
+    """한국투자증권 Open API 접속 정보 묶음."""
+
     base_url: str
     account_num: str
     account_code: str
@@ -43,6 +47,8 @@ class KISSetting(BaseModel):
 
 
 class AppSettings(BaseSettings):
+    """환경변수, .env, config.yaml을 병합한 애플리케이션 설정."""
+
     kis: KISSetting
 
     model_config = SettingsConfigDict(

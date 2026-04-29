@@ -6,6 +6,8 @@ from stock.service.stock_quote_service import StockQuoteService
 
 
 class Container(containers.DeclarativeContainer):
+    """FastAPI 컨트롤러에 주입할 클라이언트와 서비스 객체를 구성한다."""
+
     wiring_config = containers.WiringConfiguration(
         packages=["stock.interface.controller"]
     )

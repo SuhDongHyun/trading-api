@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 
 
 class IApiClient(ABC):
+    """서비스 계층이 외부 증권사 API 구현에 의존하지 않도록 하는 포트."""
+
     @abstractmethod
     def get_account_info(self):
         raise NotImplementedError

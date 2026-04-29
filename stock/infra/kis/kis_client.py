@@ -12,18 +12,24 @@ from stock.infra.kis.kis_http_client import api_get
 
 
 def _to_float(value: str | int | float | None) -> float:
+    """KIS 응답의 빈 문자열 숫자 필드를 float 기본값으로 정규화한다."""
+
     if value in (None, ""):
         return 0.0
     return float(value)
 
 
 def _to_int(value: str | int | float | None) -> int:
+    """KIS 응답의 빈 문자열 숫자 필드를 int 기본값으로 정규화한다."""
+
     if value in (None, ""):
         return 0
     return int(float(value))
 
 
 class KISClient(IApiClient):
+    """한국투자증권 Open API 응답을 내부 도메인 객체로 변환하는 어댑터."""
+
     def get_account_info(self) -> AccountSummary:
         path = "/uapi/domestic-stock/v1/trading/inquire-balance"
         params = {
