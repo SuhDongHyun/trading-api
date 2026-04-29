@@ -15,6 +15,9 @@ from stock.interface.schema.stock_quote import (
     OverboughtOversoldValueResponse,
     RsiRequest,
     RsiResultResponse,
+    RsiSignalRequest,
+    RsiSignalResultResponse,
+    RsiSignalValueResponse,
     RsiValueResponse,
     SlowStochasticRequest,
     SlowStochasticResultResponse,
@@ -203,6 +206,42 @@ def get_rsi(
                 rsi=value.rsi,
             )
             for value in indicator.values
+        ],
+    )
+
+
+@router.post("/indicator/rsi-signal", response_model=RsiSignalResultResponse)
+@inject
+def get_rsi_signal(
+    request: RsiSignalRequest,
+    stock_quote_service: StockQuoteService = Depends(
+        Provide[Container.stock_quote_service]
+    ),
+):
+    signal = stock_quote_service.get_rsi_signal(
+        market=request.market,
+        code=request.code,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        period=request.period,
+        adjusted_price=request.adjusted_price,
+        rsi_period=request.rsi_period,
+        overbought_threshold=request.overbought_threshold,
+        oversold_threshold=request.oversold_threshold,
+    )
+
+    return RsiSignalResultResponse(
+        summary=DailyStockPriceSummaryResponse(
+            name=signal.summary.name,
+            code=signal.summary.code,
+        ),
+        values=[
+            RsiSignalValueResponse(
+                date=value.date,
+                rsi=value.rsi,
+                signal=value.signal,
+            )
+            for value in signal.values
         ],
     )
 

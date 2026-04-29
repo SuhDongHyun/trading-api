@@ -8,6 +8,8 @@ from stock.domain.stock import (
     OverboughtOversoldResult,
     OverboughtOversoldValue,
     RsiResult,
+    RsiSignalResult,
+    RsiSignalValue,
     RsiValue,
     SlowStochasticResult,
     SlowStochasticValue,
@@ -111,17 +113,62 @@ class StockQuoteService:
         adjusted_price: bool = True,
         rsi_period: int = 14,
     ):
-        daily_prices = self.get_daily_stock_prices(
+        if rsi_period <= 0:
+            raise ValueError("rsi_period must be positive")
+
+        daily_prices = self._fetch_rsi_price_history(
+            market=market,
+            code=code,
+            end_date=end_date,
+            period=period,
+            adjusted_price=adjusted_price,
+            rsi_period=rsi_period,
+            start_date=start_date,
+        )
+        return RsiResult(
+            summary=daily_prices.summary,
+            values=self._filter_rsi_values_to_requested_range(
+                self._calculate_rsi_values(daily_prices.prices, rsi_period),
+                start_date=start_date,
+                end_date=end_date,
+            ),
+        )
+
+    def get_rsi_signal(
+        self,
+        market: str,
+        code: str,
+        start_date: str,
+        end_date: str,
+        period: str,
+        adjusted_price: bool = True,
+        rsi_period: int = 14,
+        overbought_threshold: float = 70.0,
+        oversold_threshold: float = 30.0,
+    ):
+        indicator = self.get_rsi(
             market=market,
             code=code,
             start_date=start_date,
             end_date=end_date,
             period=period,
             adjusted_price=adjusted_price,
+            rsi_period=rsi_period,
         )
-        return RsiResult(
-            summary=daily_prices.summary,
-            values=self._calculate_rsi_values(daily_prices.prices, rsi_period),
+        return RsiSignalResult(
+            summary=indicator.summary,
+            values=[
+                RsiSignalValue(
+                    date=value.date,
+                    rsi=value.rsi,
+                    signal=self._classify_rsi_signal(
+                        rsi=value.rsi,
+                        overbought_threshold=overbought_threshold,
+                        oversold_threshold=oversold_threshold,
+                    ),
+                )
+                for value in indicator.values
+            ],
         )
 
     def get_overbought_oversold(
@@ -277,6 +324,105 @@ class StockQuoteService:
             )
 
         return values
+
+    def _fetch_rsi_price_history(
+        self,
+        market: str,
+        code: str,
+        end_date: str,
+        period: str,
+        adjusted_price: bool,
+        rsi_period: int,
+        start_date: str,
+    ):
+        """요청 시작일의 RSI까지 계산되도록 필요한 선행 가격을 추가 조회한다."""
+
+        prices_by_date: dict[str, DailyStockPrice] = {}
+        previous_oldest_date = None
+        initial_start_date = _calculate_history_lookup_start_date(
+            start_date=start_date,
+            window=rsi_period,
+            period=period,
+        )
+        daily_prices = self.get_daily_stock_prices(
+            market=market,
+            code=code,
+            start_date=initial_start_date,
+            end_date=end_date,
+            period=period,
+            adjusted_price=adjusted_price,
+        )
+        for price in daily_prices.prices:
+            prices_by_date[price.date] = price
+
+        while daily_prices.prices:
+            sorted_prices = sorted(prices_by_date.values(), key=lambda price: price.date)
+            if self._has_enough_rsi_history(
+                prices=sorted_prices,
+                start_date=start_date,
+                rsi_period=rsi_period,
+            ):
+                break
+
+            oldest_date = sorted_prices[0].date
+            if oldest_date >= start_date or oldest_date == previous_oldest_date:
+                break
+            previous_oldest_date = oldest_date
+            chunk_end_date = _previous_date(oldest_date)
+            chunk_start_date = _calculate_history_lookup_start_date(
+                start_date=chunk_end_date,
+                window=rsi_period,
+                period=period,
+            )
+            daily_prices = self.get_daily_stock_prices(
+                market=market,
+                code=code,
+                start_date=chunk_start_date,
+                end_date=chunk_end_date,
+                period=period,
+                adjusted_price=adjusted_price,
+            )
+            if not daily_prices.prices:
+                break
+
+            for price in daily_prices.prices:
+                prices_by_date[price.date] = price
+
+        daily_prices.prices = sorted(prices_by_date.values(), key=lambda price: price.date)
+        return daily_prices
+
+    def _has_enough_rsi_history(
+        self,
+        prices: list[DailyStockPrice],
+        start_date: str,
+        rsi_period: int,
+    ) -> bool:
+        """첫 요청 날짜 앞에 RSI period만큼의 가격 이력이 모였는지 확인한다."""
+
+        sorted_prices = sorted(prices, key=lambda price: price.date)
+        first_requested_index = next(
+            (
+                index
+                for index, price in enumerate(sorted_prices)
+                if price.date >= start_date
+            ),
+            None,
+        )
+        if first_requested_index is None:
+            return True
+        return first_requested_index >= rsi_period
+
+    def _filter_rsi_values_to_requested_range(
+        self,
+        values: list[RsiValue],
+        start_date: str,
+        end_date: str,
+    ) -> list[RsiValue]:
+        return [
+            value
+            for value in values
+            if start_date <= value.date <= end_date
+        ]
 
     def get_moving_average(
         self,
@@ -466,5 +612,19 @@ class StockQuoteService:
             or slow_k <= stochastic_oversold_threshold
             or slow_d <= stochastic_oversold_threshold
         ):
+            return "OVERSOLD"
+        return "NEUTRAL"
+
+    def _classify_rsi_signal(
+        self,
+        rsi: float,
+        overbought_threshold: float,
+        oversold_threshold: float,
+    ) -> str:
+        """RSI 임계값만 사용해 과매수·과매도·중립 신호를 분류한다."""
+
+        if rsi >= overbought_threshold:
+            return "OVERBOUGHT"
+        if rsi <= oversold_threshold:
             return "OVERSOLD"
         return "NEUTRAL"

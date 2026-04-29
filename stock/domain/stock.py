@@ -88,6 +88,23 @@ class RsiResult:
 
 
 @dataclass
+class RsiSignalValue:
+    """특정 날짜의 RSI 값과 단독 신호 판정."""
+
+    date: str
+    rsi: float
+    signal: str
+
+
+@dataclass
+class RsiSignalResult:
+    """종목 요약과 RSI 단독 신호 시계열 결과."""
+
+    summary: DailyStockPriceSummary
+    values: list[RsiSignalValue]
+
+
+@dataclass
 class MovingAverageValue:
     """일별 가격 정보에 이동평균 값을 덧붙인 결과."""
 

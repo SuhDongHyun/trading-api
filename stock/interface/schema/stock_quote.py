@@ -99,6 +99,29 @@ class RsiResultResponse(BaseModel):
     values: list[RsiValueResponse]
 
 
+class RsiSignalRequest(BaseModel):
+    market: str = "J"
+    code: str
+    start_date: str
+    end_date: str
+    period: str = "D"
+    adjusted_price: bool = True
+    rsi_period: int = 14
+    overbought_threshold: float = 70.0
+    oversold_threshold: float = 30.0
+
+
+class RsiSignalValueResponse(BaseModel):
+    date: str
+    rsi: float
+    signal: str
+
+
+class RsiSignalResultResponse(BaseModel):
+    summary: DailyStockPriceSummaryResponse
+    values: list[RsiSignalValueResponse]
+
+
 class MovingAverageRequest(BaseModel):
     market: str = "J"
     code: str
