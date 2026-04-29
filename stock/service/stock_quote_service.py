@@ -1,6 +1,10 @@
+from datetime import datetime, timedelta
+
 from stock.domain.adapter.api_client import IApiClient
 from stock.domain.stock import (
     DailyStockPrice,
+    MovingAverageResult,
+    MovingAverageValue,
     OverboughtOversoldResult,
     OverboughtOversoldValue,
     RsiResult,
@@ -12,6 +16,26 @@ from stock.domain.stock import (
 
 def _simple_moving_average(values: list[float], period: int) -> float:
     return sum(values[-period:]) / period
+
+
+def _calculate_history_lookup_start_date(
+    start_date: str, window: int, period: str
+) -> str:
+    days_by_period = {
+        "D": 2,
+        "W": 7,
+        "M": 31,
+        "Y": 366,
+    }
+    days_per_window = days_by_period.get(period, 2)
+    date = datetime.strptime(start_date, "%Y%m%d").date()
+    return (date - timedelta(days=window * days_per_window)).strftime("%Y%m%d")
+
+
+def _previous_date(date: str) -> str:
+    return (datetime.strptime(date, "%Y%m%d").date() - timedelta(days=1)).strftime(
+        "%Y%m%d"
+    )
 
 
 class StockQuoteService:
@@ -237,6 +261,157 @@ class StockQuoteService:
                 RsiValue(
                     date=sorted_prices[index + 1].date,
                     rsi=self._calculate_rsi(average_gain, average_loss),
+                )
+            )
+
+        return values
+
+    def get_moving_average(
+        self,
+        market: str,
+        code: str,
+        start_date: str,
+        end_date: str,
+        period: str,
+        adjusted_price: bool = True,
+        window: int = 20,
+    ):
+        if window <= 0:
+            raise ValueError("window must be positive")
+
+        daily_prices = self._fetch_moving_average_price_history(
+            market=market,
+            code=code,
+            end_date=end_date,
+            period=period,
+            adjusted_price=adjusted_price,
+            start_date=start_date,
+            window=window,
+        )
+        return MovingAverageResult(
+            summary=daily_prices.summary,
+            values=self._calculate_moving_average_values(
+                daily_prices.prices,
+                start_date=start_date,
+                end_date=end_date,
+                window=window,
+            ),
+        )
+
+    def _fetch_moving_average_price_history(
+        self,
+        market: str,
+        code: str,
+        end_date: str,
+        period: str,
+        adjusted_price: bool,
+        window: int,
+        start_date: str,
+    ):
+        prices_by_date: dict[str, DailyStockPrice] = {}
+        chunk_end_date = end_date
+        previous_oldest_date = None
+        daily_prices = None
+
+        while True:
+            chunk_start_date = _calculate_history_lookup_start_date(
+                start_date=chunk_end_date,
+                window=window,
+                period=period,
+            )
+            daily_prices = self.get_daily_stock_prices(
+                market=market,
+                code=code,
+                start_date=chunk_start_date,
+                end_date=chunk_end_date,
+                period=period,
+                adjusted_price=adjusted_price,
+            )
+            if not daily_prices.prices:
+                break
+
+            for price in daily_prices.prices:
+                prices_by_date[price.date] = price
+
+            sorted_prices = sorted(prices_by_date.values(), key=lambda price: price.date)
+            if self._has_enough_moving_average_history(
+                prices=sorted_prices,
+                start_date=start_date,
+                window=window,
+            ):
+                break
+
+            oldest_date = sorted_prices[0].date
+            if oldest_date == previous_oldest_date:
+                break
+            previous_oldest_date = oldest_date
+            chunk_end_date = _previous_date(oldest_date)
+
+        if daily_prices is None:
+            return self.get_daily_stock_prices(
+                market=market,
+                code=code,
+                start_date=start_date,
+                end_date=end_date,
+                period=period,
+                adjusted_price=adjusted_price,
+            )
+
+        daily_prices.prices = sorted(prices_by_date.values(), key=lambda price: price.date)
+        return daily_prices
+
+    def _has_enough_moving_average_history(
+        self,
+        prices: list[DailyStockPrice],
+        start_date: str,
+        window: int,
+    ) -> bool:
+        sorted_prices = sorted(prices, key=lambda price: price.date)
+        first_requested_index = next(
+            (
+                index
+                for index, price in enumerate(sorted_prices)
+                if price.date >= start_date
+            ),
+            None,
+        )
+        if first_requested_index is None:
+            return True
+        return first_requested_index + 1 >= window
+
+    def _calculate_moving_average_values(
+        self,
+        prices: list[DailyStockPrice],
+        start_date: str,
+        end_date: str,
+        window: int,
+    ) -> list[MovingAverageValue]:
+        sorted_prices = sorted(prices, key=lambda price: price.date)
+        values: list[MovingAverageValue] = []
+
+        for index, price in enumerate(sorted_prices):
+            if price.date < start_date or price.date > end_date:
+                continue
+
+            close_prices = [
+                item.close_price for item in sorted_prices[: index + 1]
+            ]
+            moving_average = None
+            if window > 0 and len(close_prices) >= window:
+                moving_average = _simple_moving_average(close_prices, window)
+            values.append(
+                MovingAverageValue(
+                    date=price.date,
+                    open_price=price.open_price,
+                    high_price=price.high_price,
+                    low_price=price.low_price,
+                    close_price=price.close_price,
+                    accumulated_volume=price.accumulated_volume,
+                    accumulated_trading_value=price.accumulated_trading_value,
+                    price_diff=price.price_diff,
+                    price_diff_sign=price.price_diff_sign,
+                    change_flag=price.change_flag,
+                    moving_average=moving_average,
                 )
             )
 

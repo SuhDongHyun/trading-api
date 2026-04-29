@@ -7,6 +7,9 @@ from stock.interface.schema.stock_quote import (
     DailyStockPriceResponse,
     DailyStockPriceResultResponse,
     DailyStockPriceSummaryResponse,
+    MovingAverageRequest,
+    MovingAverageResultResponse,
+    MovingAverageValueResponse,
     OverboughtOversoldRequest,
     OverboughtOversoldResultResponse,
     OverboughtOversoldValueResponse,
@@ -89,6 +92,48 @@ def get_daily_stock_prices(
                 change_flag=price.change_flag,
             )
             for price in daily_prices.prices
+        ],
+    )
+
+
+@router.post("/daily/moving-average", response_model=MovingAverageResultResponse)
+@inject
+def get_moving_average(
+    request: MovingAverageRequest,
+    stock_quote_service: StockQuoteService = Depends(
+        Provide[Container.stock_quote_service]
+    ),
+):
+    moving_average = stock_quote_service.get_moving_average(
+        market=request.market,
+        code=request.code,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        period=request.period,
+        adjusted_price=request.adjusted_price,
+        window=request.window,
+    )
+
+    return MovingAverageResultResponse(
+        summary=DailyStockPriceSummaryResponse(
+            name=moving_average.summary.name,
+            code=moving_average.summary.code,
+        ),
+        values=[
+            MovingAverageValueResponse(
+                date=value.date,
+                open_price=value.open_price,
+                high_price=value.high_price,
+                low_price=value.low_price,
+                close_price=value.close_price,
+                accumulated_volume=value.accumulated_volume,
+                accumulated_trading_value=value.accumulated_trading_value,
+                price_diff=value.price_diff,
+                price_diff_sign=value.price_diff_sign,
+                change_flag=value.change_flag,
+                moving_average=value.moving_average,
+            )
+            for value in moving_average.values
         ],
     )
 
