@@ -6,10 +6,14 @@ class IApiClient(ABC):
 
     @abstractmethod
     def get_account_info(self):
+        """계좌 잔고와 보유 종목 요약을 조회한다."""
+
         raise NotImplementedError
 
     @abstractmethod
     def get_stock_info(self, market: str, code: str):
+        """단일 종목의 현재 시세 정보를 조회한다."""
+
         raise NotImplementedError
 
     @abstractmethod
@@ -22,4 +26,6 @@ class IApiClient(ABC):
         period: str,
         adjusted_price: bool,
     ):
+        """지정 기간의 일봉 가격 목록을 조회한다."""
+
         raise NotImplementedError

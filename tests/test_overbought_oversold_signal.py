@@ -11,12 +11,18 @@ from stock.service.stock_quote_service import StockQuoteService
 
 
 class FakeApiClient:
+    """과매수·과매도 신호 계산에 사용할 고정 가격 API 클라이언트."""
+
     def __init__(self):
+        """호출 인자를 기록할 목록을 초기화한다."""
+
         self.calls = []
 
     def get_daily_stock_prices(
         self, market, code, start_date, end_date, period, adjusted_price
     ):
+        """복합 신호 계산용 일봉 가격을 반환한다."""
+
         self.calls.append((market, code, start_date, end_date, period, adjusted_price))
         return DailyStockPriceResult(
             summary=DailyStockPriceSummary(name="삼성전자", code="005930"),
@@ -29,6 +35,8 @@ class FakeApiClient:
         )
 
     def _price(self, date: str, close_price: float):
+        """테스트용 DailyStockPrice 객체를 만든다."""
+
         return DailyStockPrice(
             date=date,
             open_price=close_price,
@@ -44,7 +52,11 @@ class FakeApiClient:
 
 
 class OverboughtOversoldSignalFeatureTest(unittest.TestCase):
+    """RSI와 Stochastic 기반 복합 신호 계산을 검증한다."""
+
     def test_service_returns_overbought_signal_from_rsi_and_stochastic(self):
+        """RSI와 Stochastic 조건으로 OVERBOUGHT 신호가 나오는지 검증한다."""
+
         api_client = FakeApiClient()
         service = StockQuoteService(api_client)
 
@@ -74,6 +86,8 @@ class OverboughtOversoldSignalFeatureTest(unittest.TestCase):
         self.assertAlmostEqual(result.values[0].slow_d, 100.0, places=4)
 
     def test_controller_returns_overbought_oversold_response_schema(self):
+        """Controller가 복합 신호 결과를 응답 스키마로 변환하는지 검증한다."""
+
         request = OverboughtOversoldRequest(
             market="J",
             code="005930",

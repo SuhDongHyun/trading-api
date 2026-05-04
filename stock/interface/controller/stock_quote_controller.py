@@ -38,6 +38,8 @@ def get_stock_info(
         Provide[Container.stock_quote_service]
     ),
 ):
+    """현재가 조회 요청을 처리하고 응답 스키마로 변환한다."""
+
     stock_info = stock_quote_service.get_stock_info(request.market, request.code)
 
     return StockInfoResponse(
@@ -67,6 +69,8 @@ def get_daily_stock_prices(
         Provide[Container.stock_quote_service]
     ),
 ):
+    """일봉 조회 요청을 처리하고 날짜별 가격 응답을 만든다."""
+
     daily_prices = stock_quote_service.get_daily_stock_prices(
         market=request.market,
         code=request.code,
@@ -107,6 +111,8 @@ def get_moving_average(
         Provide[Container.stock_quote_service]
     ),
 ):
+    """이동평균 조회 요청을 처리하고 지표 응답을 만든다."""
+
     moving_average = stock_quote_service.get_moving_average(
         market=request.market,
         code=request.code,
@@ -149,6 +155,8 @@ def get_slow_stochastic(
         Provide[Container.stock_quote_service]
     ),
 ):
+    """Slow Stochastic 지표 요청을 처리한다."""
+
     indicator = stock_quote_service.get_slow_stochastic(
         market=request.market,
         code=request.code,
@@ -185,6 +193,8 @@ def get_rsi(
         Provide[Container.stock_quote_service]
     ),
 ):
+    """RSI 지표 요청을 처리한다."""
+
     indicator = stock_quote_service.get_rsi(
         market=request.market,
         code=request.code,
@@ -218,6 +228,8 @@ def get_rsi_signal(
         Provide[Container.stock_quote_service]
     ),
 ):
+    """RSI 과매수·과매도 신호 요청을 처리한다."""
+
     signal = stock_quote_service.get_rsi_signal(
         market=request.market,
         code=request.code,
@@ -257,6 +269,8 @@ def get_overbought_oversold(
         Provide[Container.stock_quote_service]
     ),
 ):
+    """복합 과매수·과매도 신호 요청을 처리한다."""
+
     signal = stock_quote_service.get_overbought_oversold(
         market=request.market,
         code=request.code,

@@ -16,16 +16,24 @@ class YamlSettingSource(PydanticBaseSettingsSource):
     def __init__(
         self, settings_cls: type[BaseSettings], yaml_file: str = "config.yaml"
     ):
+        """읽어올 YAML 파일 이름을 저장한다."""
+
         super().__init__(settings_cls)
         self.yaml_file = yaml_file
 
     def get_field_value(self, field, field_name):
+        """개별 필드 조회를 사용하지 않음을 Pydantic에 알린다."""
+
         return None, field_name, False
 
     def __call__(self) -> dict[str, Any]:
+        """Pydantic Settings가 사용할 YAML 설정 dict를 반환한다."""
+
         return self._read_yaml()
 
     def _read_yaml(self) -> dict[str, Any]:
+        """config.yaml 파일에서 app 섹션만 읽어 반환한다."""
+
         file_path = Path(__file__).parent / self.yaml_file
         if not file_path.exists():
             return {}
@@ -68,6 +76,8 @@ class AppSettings(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
+        """설정 우선순위에 config.yaml 소스를 추가한다."""
+
         return (
             init_settings,
             env_settings,

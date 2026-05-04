@@ -17,6 +17,8 @@ router = APIRouter(prefix="/account", tags=["account"])
 def get_account_summary(
     account_service: AccountService = Depends(Provide[Container.account_service]),
 ):
+    """계좌 요약 도메인 결과를 API 응답 스키마로 변환한다."""
+
     account_summary = account_service.get_account_info()
 
     return AccountSummaryResponse(

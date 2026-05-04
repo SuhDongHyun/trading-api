@@ -31,6 +31,8 @@ class KISClient(IApiClient):
     """한국투자증권 Open API 응답을 내부 도메인 객체로 변환하는 어댑터."""
 
     def get_account_info(self) -> AccountSummary:
+        """KIS 잔고 조회 응답을 AccountSummary로 변환한다."""
+
         path = "/uapi/domestic-stock/v1/trading/inquire-balance"
         params = {
             "CANO": settings.kis.account_num,
@@ -68,6 +70,8 @@ class KISClient(IApiClient):
         )
 
     def get_stock_info(self, market: str, code: str) -> Stock:
+        """KIS 현재가 조회 응답을 Stock 도메인 객체로 변환한다."""
+
         path = "/uapi/domestic-stock/v1/quotations/inquire-price-2"
         params = {
             "FID_COND_MRKT_DIV_CODE": market,
@@ -103,6 +107,8 @@ class KISClient(IApiClient):
         period: str,
         adjusted_price: bool = True,
     ) -> DailyStockPriceResult:
+        """KIS 일봉 차트 응답을 요약과 가격 목록으로 변환한다."""
+
         path = "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
         params = {
             "FID_COND_MRKT_DIV_CODE": market,

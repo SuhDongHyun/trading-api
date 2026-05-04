@@ -50,9 +50,13 @@ class StockQuoteService:
     """시세 조회 결과를 기반으로 기술적 지표와 매매 참고 신호를 계산한다."""
 
     def __init__(self, api_client: IApiClient):
+        """시세 데이터를 가져올 API 클라이언트를 주입받는다."""
+
         self.api_client = api_client
 
     def get_stock_info(self, market: str, code: str):
+        """시장 구분과 종목 코드로 현재 시세 정보를 조회한다."""
+
         return self.api_client.get_stock_info(market, code)
 
     def get_daily_stock_prices(
@@ -64,6 +68,8 @@ class StockQuoteService:
         period: str,
         adjusted_price: bool = True,
     ):
+        """지정 구간의 일봉 시세를 외부 API에서 조회한다."""
+
         return self.api_client.get_daily_stock_prices(
             market=market,
             code=code,
@@ -85,6 +91,8 @@ class StockQuoteService:
         k_smoothing_period: int = 3,
         d_period: int = 3,
     ):
+        """일봉 가격으로 Slow Stochastic 지표를 계산한다."""
+
         daily_prices = self.get_daily_stock_prices(
             market=market,
             code=code,
@@ -113,6 +121,8 @@ class StockQuoteService:
         adjusted_price: bool = True,
         rsi_period: int = 14,
     ):
+        """요청 구간의 RSI 지표 시계열을 계산한다."""
+
         if rsi_period <= 0:
             raise ValueError("rsi_period must be positive")
 
@@ -146,6 +156,8 @@ class StockQuoteService:
         overbought_threshold: float = 70.0,
         oversold_threshold: float = 30.0,
     ):
+        """RSI 값에 과매수·과매도 신호를 붙여 반환한다."""
+
         indicator = self.get_rsi(
             market=market,
             code=code,
@@ -188,6 +200,8 @@ class StockQuoteService:
         stochastic_overbought_threshold: float = 80.0,
         stochastic_oversold_threshold: float = 20.0,
     ):
+        """RSI와 Slow Stochastic을 조합해 과매수·과매도 신호를 만든다."""
+
         daily_prices = self.get_daily_stock_prices(
             market=market,
             code=code,
@@ -418,6 +432,8 @@ class StockQuoteService:
         start_date: str,
         end_date: str,
     ) -> list[RsiValue]:
+        """RSI 결과 중 사용자가 요청한 날짜 범위만 남긴다."""
+
         return [
             value
             for value in values
@@ -434,6 +450,8 @@ class StockQuoteService:
         adjusted_price: bool = True,
         window: int = 20,
     ):
+        """요청 구간의 이동평균 값을 일봉 시세에 붙여 반환한다."""
+
         if window <= 0:
             raise ValueError("window must be positive")
 
