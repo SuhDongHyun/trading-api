@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from stock.domain.stock import (
+from stock.domain.price import (
     DailyStockPrice,
     DailyStockPriceResult,
     DailyStockPriceSummary,
@@ -99,6 +99,13 @@ class DailyStockPriceFeatureTest(unittest.TestCase):
             [("J", "005930", "20240401", "20240430", "D", True)],
         )
         self.assertEqual(result.summary.code, "005930")
+
+    def test_service_keeps_price_history_logic_inside_stock_quote_service(self):
+        """가격 이력 조회 책임을 별도 서비스로 노출하지 않는지 검증한다."""
+
+        service = StockQuoteService(FakeApiClient())
+
+        self.assertFalse(hasattr(service, "price_history_service"))
 
     @patch("stock.infra.kis.kis_client.api_get")
     def test_kis_client_calls_daily_chart_endpoint_and_maps_response(self, api_get):

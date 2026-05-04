@@ -1,6 +1,6 @@
 import unittest
 
-from stock.domain.stock import (
+from stock.domain.price import (
     DailyStockPrice,
     DailyStockPriceResult,
     DailyStockPriceSummary,
