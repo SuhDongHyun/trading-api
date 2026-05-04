@@ -1,13 +1,13 @@
 from config import settings
 
 from stock.domain.account import Position, Account, AccountSummary
-from stock.domain.stock import (
+from stock.domain.adapter.api_client import IApiClient
+from stock.domain.price import (
     DailyStockPrice,
     DailyStockPriceResult,
     DailyStockPriceSummary,
-    Stock,
 )
-from stock.domain.adapter.api_client import IApiClient
+from stock.domain.stock import StockInfo
 from stock.infra.kis.kis_http_client import api_get
 
 
@@ -69,21 +69,28 @@ class KISClient(IApiClient):
             accounts=accounts,
         )
 
-    def get_stock_info(self, market: str, code: str) -> Stock:
+    def get_stock_info(self, market: str, code: str) -> StockInfo:
         """KIS 현재가 조회 응답을 Stock 도메인 객체로 변환한다."""
-
-        path = "/uapi/domestic-stock/v1/quotations/inquire-price-2"
         params = {
             "FID_COND_MRKT_DIV_CODE": market,
             "FID_INPUT_ISCD": code,
         }
-        resp = api_get(path=path, params=params, tr_id="FHPST01010000")
-        stock_info = resp.json()["output"]
+        path1 = "/uapi/domestic-stock/v1/quotations/inquire-price"
+        path2 = "/uapi/domestic-stock/v1/quotations/inquire-price-2"
 
-        return Stock(
+        stock_info = (
+            api_get(path=path1, params=params, tr_id="FHKST01010100").json()["output"]
+            | api_get(path=path2, params=params, tr_id="FHPST01010000").json()["output"]
+        )
+
+        return StockInfo(
             market_name=stock_info["rprs_mrkt_kor_name"],
             code=stock_info["bstp_cls_code"],
             industry=stock_info["bstp_kor_isnm"],
+            per=stock_info["per"],
+            pbr=stock_info["pbr"],
+            eps=stock_info["eps"],
+            bps=stock_info["bps"],
             open_price=stock_info["stck_oprc"],
             current_price=stock_info["stck_prpr"],
             previous_price=stock_info["stck_prdy_clpr"],

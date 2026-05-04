@@ -14,6 +14,10 @@ class StockInfoResponse(BaseModel):
     market_name: str
     code: str
     industry: str
+    per: float
+    pbr: float
+    eps: float
+    bps: float
     open_price: float
     current_price: float
     previous_price: float
