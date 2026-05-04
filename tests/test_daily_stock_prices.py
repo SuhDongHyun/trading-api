@@ -13,7 +13,11 @@ from stock.service.stock_quote_service import StockQuoteService
 
 
 class FakeResponse:
+    """KIS 일봉 API의 최소 JSON 응답을 흉내낸다."""
+
     def json(self):
+        """KIS 일봉 응답 body를 반환한다."""
+
         return {
             "output1": {
                 "hts_kor_isnm": "삼성전자",
@@ -40,12 +44,18 @@ class FakeResponse:
 
 
 class FakeApiClient:
+    """일봉 서비스 테스트에 사용할 고정 응답 API 클라이언트."""
+
     def __init__(self):
+        """호출 인자를 기록할 목록을 초기화한다."""
+
         self.calls = []
 
     def get_daily_stock_prices(
         self, market, code, start_date, end_date, period, adjusted_price
     ):
+        """일봉 조회 호출 인자를 기록하고 고정 결과를 반환한다."""
+
         self.calls.append((market, code, start_date, end_date, period, adjusted_price))
         return DailyStockPriceResult(
             summary=DailyStockPriceSummary(name="삼성전자", code="005930"),
@@ -67,7 +77,11 @@ class FakeApiClient:
 
 
 class DailyStockPriceFeatureTest(unittest.TestCase):
+    """일봉 조회 서비스, KIS adapter, controller 동작을 검증한다."""
+
     def test_service_delegates_daily_price_query_to_api_client(self):
+        """서비스가 일봉 조회 요청을 API 클라이언트로 위임하는지 검증한다."""
+
         api_client = FakeApiClient()
         service = StockQuoteService(api_client)
 
@@ -88,6 +102,8 @@ class DailyStockPriceFeatureTest(unittest.TestCase):
 
     @patch("stock.infra.kis.kis_client.api_get")
     def test_kis_client_calls_daily_chart_endpoint_and_maps_response(self, api_get):
+        """KIS client가 일봉 endpoint 호출 결과를 도메인 객체로 매핑하는지 검증한다."""
+
         api_get.return_value = FakeResponse()
         client = KISClient()
 
@@ -119,6 +135,8 @@ class DailyStockPriceFeatureTest(unittest.TestCase):
         self.assertEqual(result.prices[0].accumulated_volume, 1234567)
 
     def test_controller_returns_daily_price_response_schema(self):
+        """Controller가 일봉 도메인 결과를 응답 스키마로 변환하는지 검증한다."""
+
         request = DailyStockPriceRequest(
             market="J",
             code="005930",

@@ -11,12 +11,18 @@ from stock.service.stock_quote_service import StockQuoteService
 
 
 class FakeApiClient:
+    """Slow Stochastic 계산에 사용할 고정 일봉 가격 API 클라이언트."""
+
     def __init__(self):
+        """호출 인자를 기록할 목록을 초기화한다."""
+
         self.calls = []
 
     def get_daily_stock_prices(
         self, market, code, start_date, end_date, period, adjusted_price
     ):
+        """Slow Stochastic 계산용 일봉 가격을 반환한다."""
+
         self.calls.append((market, code, start_date, end_date, period, adjusted_price))
         return DailyStockPriceResult(
             summary=DailyStockPriceSummary(name="삼성전자", code="005930"),
@@ -86,7 +92,11 @@ class FakeApiClient:
 
 
 class SlowStochasticIndicatorFeatureTest(unittest.TestCase):
+    """Slow Stochastic 지표 계산과 controller 응답 변환을 검증한다."""
+
     def test_service_calculates_slow_stochastic_from_daily_prices(self):
+        """서비스가 일봉 가격으로 slow K/D 값을 계산하는지 검증한다."""
+
         api_client = FakeApiClient()
         service = StockQuoteService(api_client)
 
@@ -113,6 +123,8 @@ class SlowStochasticIndicatorFeatureTest(unittest.TestCase):
         self.assertAlmostEqual(result.values[0].slow_d, 61.3889, places=4)
 
     def test_controller_returns_slow_stochastic_response_schema(self):
+        """Controller가 Slow Stochastic 결과를 응답 스키마로 변환하는지 검증한다."""
+
         request = SlowStochasticRequest(
             market="J",
             code="005930",

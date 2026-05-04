@@ -2,11 +2,15 @@ from pydantic import BaseModel, Field
 
 
 class StockInfoRequest(BaseModel):
+    """현재가 조회에 필요한 시장 구분과 종목 코드."""
+
     market: str
     code: str
 
 
 class StockInfoResponse(BaseModel):
+    """현재가 조회 API 응답 스키마."""
+
     market_name: str
     code: str
     industry: str
@@ -25,6 +29,8 @@ class StockInfoResponse(BaseModel):
 
 
 class DailyStockPriceRequest(BaseModel):
+    """일봉 조회 요청 파라미터."""
+
     market: str = "J"
     code: str
     start_date: str
@@ -34,11 +40,15 @@ class DailyStockPriceRequest(BaseModel):
 
 
 class DailyStockPriceSummaryResponse(BaseModel):
+    """일봉 결과에 포함되는 종목 식별 요약."""
+
     name: str
     code: str
 
 
 class DailyStockPriceResponse(BaseModel):
+    """특정 거래일의 일봉 가격 응답."""
+
     date: str
     open_price: float
     high_price: float
@@ -52,11 +62,15 @@ class DailyStockPriceResponse(BaseModel):
 
 
 class DailyStockPriceResultResponse(BaseModel):
+    """종목 요약과 일봉 가격 목록 응답."""
+
     summary: DailyStockPriceSummaryResponse
     prices: list[DailyStockPriceResponse]
 
 
 class SlowStochasticRequest(BaseModel):
+    """Slow Stochastic 계산 요청 파라미터."""
+
     market: str = "J"
     code: str
     start_date: str
@@ -69,17 +83,23 @@ class SlowStochasticRequest(BaseModel):
 
 
 class SlowStochasticValueResponse(BaseModel):
+    """특정 날짜의 Slow Stochastic 값 응답."""
+
     date: str
     slow_k: float
     slow_d: float
 
 
 class SlowStochasticResultResponse(BaseModel):
+    """종목 요약과 Slow Stochastic 시계열 응답."""
+
     summary: DailyStockPriceSummaryResponse
     values: list[SlowStochasticValueResponse]
 
 
 class RsiRequest(BaseModel):
+    """RSI 계산 요청 파라미터."""
+
     market: str = "J"
     code: str
     start_date: str
@@ -90,16 +110,22 @@ class RsiRequest(BaseModel):
 
 
 class RsiValueResponse(BaseModel):
+    """특정 날짜의 RSI 값 응답."""
+
     date: str
     rsi: float
 
 
 class RsiResultResponse(BaseModel):
+    """종목 요약과 RSI 시계열 응답."""
+
     summary: DailyStockPriceSummaryResponse
     values: list[RsiValueResponse]
 
 
 class RsiSignalRequest(BaseModel):
+    """RSI 신호 계산 요청 파라미터."""
+
     market: str = "J"
     code: str
     start_date: str
@@ -112,17 +138,23 @@ class RsiSignalRequest(BaseModel):
 
 
 class RsiSignalValueResponse(BaseModel):
+    """특정 날짜의 RSI 값과 신호 응답."""
+
     date: str
     rsi: float
     signal: str
 
 
 class RsiSignalResultResponse(BaseModel):
+    """종목 요약과 RSI 신호 시계열 응답."""
+
     summary: DailyStockPriceSummaryResponse
     values: list[RsiSignalValueResponse]
 
 
 class MovingAverageRequest(BaseModel):
+    """이동평균 계산 요청 파라미터."""
+
     market: str = "J"
     code: str
     start_date: str
@@ -133,6 +165,8 @@ class MovingAverageRequest(BaseModel):
 
 
 class MovingAverageValueResponse(BaseModel):
+    """특정 날짜의 가격과 이동평균 값 응답."""
+
     date: str
     open_price: float
     high_price: float
@@ -147,11 +181,15 @@ class MovingAverageValueResponse(BaseModel):
 
 
 class MovingAverageResultResponse(BaseModel):
+    """종목 요약과 이동평균 시계열 응답."""
+
     summary: DailyStockPriceSummaryResponse
     values: list[MovingAverageValueResponse]
 
 
 class OverboughtOversoldRequest(BaseModel):
+    """RSI와 Stochastic 기반 과매수·과매도 신호 요청."""
+
     market: str = "J"
     code: str
     start_date: str
@@ -169,6 +207,8 @@ class OverboughtOversoldRequest(BaseModel):
 
 
 class OverboughtOversoldValueResponse(BaseModel):
+    """특정 날짜의 복합 과매수·과매도 신호 응답."""
+
     date: str
     rsi: float
     slow_k: float
@@ -177,5 +217,7 @@ class OverboughtOversoldValueResponse(BaseModel):
 
 
 class OverboughtOversoldResultResponse(BaseModel):
+    """종목 요약과 복합 과매수·과매도 신호 시계열 응답."""
+
     summary: DailyStockPriceSummaryResponse
     values: list[OverboughtOversoldValueResponse]

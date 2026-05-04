@@ -11,12 +11,18 @@ from stock.service.stock_quote_service import StockQuoteService
 
 
 class FakeApiClient:
+    """RSI 계산에 사용할 짧은 고정 가격 API 클라이언트."""
+
     def __init__(self):
+        """호출 인자를 기록할 목록을 초기화한다."""
+
         self.calls = []
 
     def get_daily_stock_prices(
         self, market, code, start_date, end_date, period, adjusted_price
     ):
+        """RSI 계산용 일봉 가격을 반환하고 호출 인자를 기록한다."""
+
         self.calls.append((market, code, start_date, end_date, period, adjusted_price))
         prices = [
             self._price("20240401", 10.0),
@@ -30,6 +36,8 @@ class FakeApiClient:
         )
 
     def _price(self, date: str, close_price: float):
+        """테스트용 DailyStockPrice 객체를 만든다."""
+
         return DailyStockPrice(
             date=date,
             open_price=0.0,
@@ -45,9 +53,13 @@ class FakeApiClient:
 
 
 class HistoricalRsiApiClient(FakeApiClient):
+    """요청 구간 앞의 RSI 선행 이력을 포함하는 API 클라이언트."""
+
     def get_daily_stock_prices(
         self, market, code, start_date, end_date, period, adjusted_price
     ):
+        """RSI 범위 필터링 테스트용 일봉 가격을 반환한다."""
+
         self.calls.append((market, code, start_date, end_date, period, adjusted_price))
         prices = [
             self._price("20240401", 10.0),
@@ -65,6 +77,8 @@ class HistoricalRsiApiClient(FakeApiClient):
         )
 
     def _price(self, date: str, close_price: float):
+        """테스트용 DailyStockPrice 객체를 만든다."""
+
         return DailyStockPrice(
             date=date,
             open_price=0.0,
@@ -80,7 +94,11 @@ class HistoricalRsiApiClient(FakeApiClient):
 
 
 class RsiIndicatorFeatureTest(unittest.TestCase):
+    """RSI 지표 계산과 controller 응답 변환을 검증한다."""
+
     def test_service_calculates_rsi_from_daily_close_prices(self):
+        """서비스가 일봉 종가로 RSI 값을 계산하는지 검증한다."""
+
         api_client = FakeApiClient()
         service = StockQuoteService(api_client)
 
@@ -104,6 +122,8 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
         self.assertAlmostEqual(result.values[0].rsi, 83.3333, places=4)
 
     def test_service_fetches_history_and_returns_requested_rsi_range(self):
+        """RSI 계산 이력을 확보한 뒤 요청 구간만 반환하는지 검증한다."""
+
         api_client = HistoricalRsiApiClient()
         service = StockQuoteService(api_client)
 
@@ -129,6 +149,8 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
         self.assertAlmostEqual(result.values[-1].rsi, 29.6296, places=4)
 
     def test_controller_returns_rsi_response_schema(self):
+        """Controller가 RSI 결과를 응답 스키마로 변환하는지 검증한다."""
+
         request = RsiRequest(
             market="J",
             code="005930",
@@ -147,6 +169,8 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
         self.assertAlmostEqual(response.values[0].rsi, 83.3333, places=4)
 
     def test_controller_returns_rsi_signal_response_schema(self):
+        """Controller가 RSI 신호 결과를 응답 스키마로 변환하는지 검증한다."""
+
         request = RsiSignalRequest(
             market="J",
             code="005930",
