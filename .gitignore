@@ -211,3 +211,6 @@ __marimo__/
 
 # Jupyter Notebook
 notebook/
+
+# Codex Report
+report/
