@@ -4,6 +4,7 @@ from requests import get, post, Response
 from typing import Dict, Any, Optional
 
 from config import settings
+from stock.infra.kis.kis_rate_limiter import acquire_kis_api_slot
 from stock.infra.kis.kis_token_manager import auth_headers
 
 
@@ -30,6 +31,7 @@ def api_get(
     extra_headers: Optional[Dict[str, str]] = None,
 ) -> Response:
     """공통 인증/에러 처리를 적용한 한국투자증권 GET 호출."""
+    acquire_kis_api_slot()
     resp = get(
         url=build_url(path),
         headers=build_header(tr_id, extra_headers),
@@ -46,6 +48,7 @@ def api_post(
     extra_headers: Optional[Dict[str, str]] = None,
 ) -> Response:
     """공통 인증/에러 처리를 적용한 한국투자증권 POST 호출."""
+    acquire_kis_api_slot()
     resp = post(
         url=build_url(path),
         headers=build_header(tr_id, extra_headers),
