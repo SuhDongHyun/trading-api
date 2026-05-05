@@ -1,3 +1,5 @@
+from itertools import chain
+
 from config import settings
 
 from stock.domain.account import Position, Account, AccountSummary
@@ -9,22 +11,7 @@ from stock.domain.price import (
 )
 from stock.domain.stock import StockInfo
 from stock.infra.kis.kis_http_client import api_get
-
-
-def _to_float(value: str | int | float | None) -> float:
-    """KIS 응답의 빈 문자열 숫자 필드를 float 기본값으로 정규화한다."""
-
-    if value in (None, ""):
-        return 0.0
-    return float(value)
-
-
-def _to_int(value: str | int | float | None) -> int:
-    """KIS 응답의 빈 문자열 숫자 필드를 int 기본값으로 정규화한다."""
-
-    if value in (None, ""):
-        return 0
-    return int(float(value))
+from stock.infra.kis.kis_util import _to_float, _to_int, split_date_range
 
 
 class KISClient(IApiClient):
@@ -116,18 +103,24 @@ class KISClient(IApiClient):
     ) -> DailyStockPriceResult:
         """KIS 일봉 차트 응답을 요약과 가격 목록으로 변환한다."""
 
-        path = "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
-        params = {
-            "FID_COND_MRKT_DIV_CODE": market,
-            "FID_INPUT_ISCD": code,
-            "FID_INPUT_DATE_1": start_date,
-            "FID_INPUT_DATE_2": end_date,
-            "FID_PERIOD_DIV_CODE": period,
-            "FID_ORG_ADJ_PRC": "0" if adjusted_price else "1",
-        }
-        resp = api_get(path=path, params=params, tr_id="FHKST03010100")
-        body = resp.json()
-        summary = body["output1"]
+        date_ranges = split_date_range(start_date, end_date)
+        bodies = []
+
+        for _start_date, _end_date in date_ranges:
+            path = "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
+            params = {
+                "FID_COND_MRKT_DIV_CODE": market,
+                "FID_INPUT_ISCD": code,
+                "FID_INPUT_DATE_1": _start_date,
+                "FID_INPUT_DATE_2": _end_date,
+                "FID_PERIOD_DIV_CODE": period,
+                "FID_ORG_ADJ_PRC": "0" if adjusted_price else "1",
+            }
+            resp = api_get(path=path, params=params, tr_id="FHKST03010100")
+            bodies.append(resp.json())
+
+        summary = bodies[0]["output1"]
+        prices = list(chain.from_iterable(body["output2"][::-1] for body in bodies))
 
         return DailyStockPriceResult(
             summary=DailyStockPriceSummary(
@@ -147,6 +140,6 @@ class KISClient(IApiClient):
                     price_diff_sign=price["prdy_vrss_sign"],
                     change_flag=price["mod_yn"],
                 )
-                for price in body["output2"]
+                for price in prices
             ],
         )
