@@ -13,12 +13,24 @@ def to_float(value: str | int | float | None) -> float:
     return float(value)
 
 
+def _to_float(value: str | int | float | None) -> float:
+    """기존 호출부와의 호환을 위해 공개 helper를 위임한다."""
+
+    return to_float(value)
+
+
 def to_int(value: str | int | float | None) -> int:
     """KIS 응답의 빈 문자열 숫자 필드를 int 기본값으로 정규화한다."""
 
     if value in (None, ""):
         return 0
     return int(float(value))
+
+
+def _to_int(value: str | int | float | None) -> int:
+    """기존 호출부와의 호환을 위해 공개 helper를 위임한다."""
+
+    return to_int(value)
 
 
 def split_date_range(start_date: str, end_date: str) -> list[tuple[str, str]]:
