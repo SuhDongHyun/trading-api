@@ -161,27 +161,11 @@ class MovingAverageRequest(BaseModel):
     window: int = Field(default=20, gt=0)
 
 
-class MovingAverageValueResponse(BaseModel):
-    """특정 날짜의 가격과 이동평균 값 응답."""
+class MovingAverageResponse(BaseModel):
+    """특정 날짜의 이동평균 값 응답."""
 
     date: str
-    open_price: float
-    high_price: float
-    low_price: float
-    close_price: float
-    accumulated_volume: int
-    accumulated_trading_value: float
-    price_diff: float
-    price_diff_sign: str
-    change_flag: str
-    moving_average: float | None
-
-
-class MovingAverageResultResponse(BaseModel):
-    """종목 요약과 이동평균 시계열 응답."""
-
-    summary: DailyStockPriceSummaryResponse
-    values: list[MovingAverageValueResponse]
+    moving_average: float
 
 
 class OverboughtOversoldRequest(BaseModel):

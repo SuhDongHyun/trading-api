@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 from stock.domain.adapter.api_client import IApiClient
 from stock.domain.indicator import (
-    MovingAverageResult,
+    MovingAverage,
     OverboughtOversoldResult,
     RsiResult,
     RsiSignalResult,
@@ -10,6 +10,7 @@ from stock.domain.indicator import (
     SlowStochasticResult,
 )
 from stock.domain.price import DailyStockPrice, DailyStockPriceResult
+from stock.service.indicator.common import resolve_indicator_date_range
 from stock.service.indicator.moving_average import calculate_moving_average_values
 from stock.service.indicator.overbought_oversold import (
     calculate_overbought_oversold_values,
@@ -235,30 +236,26 @@ class StockQuoteService:
         period: str,
         adjusted_price: bool = True,
         window: int = 20,
-    ):
+    ) -> list[MovingAverage]:
         """요청 구간의 이동평균 값을 일봉 시세에 붙여 반환한다."""
 
         if window <= 0:
             raise ValueError("window must be positive")
 
-        daily_prices = self._fetch_moving_average_price_history(
+        fetch_start_date, valid_end_date = resolve_indicator_date_range(
+            start_date, end_date, period, window
+        )
+
+        period_prices = self.get_daily_stock_prices(
             market=market,
             code=code,
-            end_date=end_date,
+            start_date=fetch_start_date,
+            end_date=valid_end_date,
             period=period,
             adjusted_price=adjusted_price,
-            start_date=start_date,
-            window=window,
         )
-        return MovingAverageResult(
-            summary=daily_prices.summary,
-            values=calculate_moving_average_values(
-                daily_prices.prices,
-                start_date=start_date,
-                end_date=end_date,
-                window=window,
-            ),
-        )
+
+        return calculate_moving_average_values(period_prices, window)
 
     def _fetch_rsi_price_history(
         self,

@@ -7,8 +7,7 @@ from stock.interface.schema.stock_quote import (
     DailyStockPriceResponse,
     DailyStockPriceSummaryResponse,
     MovingAverageRequest,
-    MovingAverageResultResponse,
-    MovingAverageValueResponse,
+    MovingAverageResponse,
     OverboughtOversoldRequest,
     OverboughtOversoldResultResponse,
     OverboughtOversoldValueResponse,
@@ -100,7 +99,7 @@ def get_daily_stock_prices(
     ]
 
 
-@router.post("/daily/moving-average", response_model=MovingAverageResultResponse)
+@router.post("/daily/moving-average", response_model=list[MovingAverageResponse])
 @inject
 def get_moving_average(
     request: MovingAverageRequest,
@@ -110,7 +109,7 @@ def get_moving_average(
 ):
     """이동평균 조회 요청을 처리하고 지표 응답을 만든다."""
 
-    moving_average = stock_quote_service.get_moving_average(
+    moving_averages = stock_quote_service.get_moving_average(
         market=request.market,
         code=request.code,
         start_date=request.start_date,
@@ -120,28 +119,13 @@ def get_moving_average(
         window=request.window,
     )
 
-    return MovingAverageResultResponse(
-        summary=DailyStockPriceSummaryResponse(
-            name=moving_average.summary.name,
-            code=moving_average.summary.code,
-        ),
-        values=[
-            MovingAverageValueResponse(
-                date=value.date,
-                open_price=value.open_price,
-                high_price=value.high_price,
-                low_price=value.low_price,
-                close_price=value.close_price,
-                accumulated_volume=value.accumulated_volume,
-                accumulated_trading_value=value.accumulated_trading_value,
-                price_diff=value.price_diff,
-                price_diff_sign=value.price_diff_sign,
-                change_flag=value.change_flag,
-                moving_average=value.moving_average,
-            )
-            for value in moving_average.values
-        ],
-    )
+    return [
+        MovingAverageResponse(
+            date=moving_average.date,
+            moving_average=moving_average.value,
+        )
+        for moving_average in moving_averages
+    ]
 
 
 @router.post("/indicator/slow-stochastic", response_model=SlowStochasticResultResponse)
