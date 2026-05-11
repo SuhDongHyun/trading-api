@@ -1,11 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from stock.domain.price import (
-    DailyStockPrice,
-    DailyStockPriceResult,
-    DailyStockPriceSummary,
-)
+from stock.domain.price import DailyStockPrice
 from stock.infra.kis.kis_client import KISClient
 from stock.interface.controller.stock_quote_controller import get_daily_stock_prices
 from stock.interface.schema.stock_quote import DailyStockPriceRequest
@@ -57,23 +53,20 @@ class FakeApiClient:
         """일봉 조회 호출 인자를 기록하고 고정 결과를 반환한다."""
 
         self.calls.append((market, code, start_date, end_date, period, adjusted_price))
-        return DailyStockPriceResult(
-            summary=DailyStockPriceSummary(name="삼성전자", code="005930"),
-            prices=[
-                DailyStockPrice(
-                    date="20240401",
-                    open_price=70000.0,
-                    high_price=71000.0,
-                    low_price=69000.0,
-                    close_price=70500.0,
-                    accumulated_volume=1234567,
-                    accumulated_trading_value=87654321000.0,
-                    price_diff=500.0,
-                    price_diff_sign="2",
-                    change_flag="N",
-                )
-            ],
-        )
+        return [
+            DailyStockPrice(
+                date="20240401",
+                open_price=70000.0,
+                high_price=71000.0,
+                low_price=69000.0,
+                close_price=70500.0,
+                accumulated_volume=1234567,
+                accumulated_trading_value=87654321000.0,
+                price_diff=500.0,
+                price_diff_sign="2",
+                change_flag="N",
+            )
+        ]
 
 
 class DailyStockPriceFeatureTest(unittest.TestCase):
@@ -98,7 +91,7 @@ class DailyStockPriceFeatureTest(unittest.TestCase):
             api_client.calls,
             [("J", "005930", "20240401", "20240430", "D", True)],
         )
-        self.assertEqual(result.summary.code, "005930")
+        self.assertEqual(result[0].date, "20240401")
 
     def test_service_keeps_price_history_logic_inside_stock_quote_service(self):
         """가격 이력 조회 책임을 별도 서비스로 노출하지 않는지 검증한다."""
@@ -135,11 +128,9 @@ class DailyStockPriceFeatureTest(unittest.TestCase):
             },
             tr_id="FHKST03010100",
         )
-        self.assertEqual(result.summary.name, "삼성전자")
-        self.assertEqual(result.summary.code, "005930")
-        self.assertEqual(result.prices[0].date, "20240401")
-        self.assertEqual(result.prices[0].close_price, 70500.0)
-        self.assertEqual(result.prices[0].accumulated_volume, 1234567)
+        self.assertEqual(result[0].date, "20240401")
+        self.assertEqual(result[0].close_price, 70500.0)
+        self.assertEqual(result[0].accumulated_volume, 1234567)
 
     def test_controller_returns_daily_price_response_schema(self):
         """Controller가 일봉 도메인 결과를 응답 스키마로 변환하는지 검증한다."""
@@ -156,9 +147,8 @@ class DailyStockPriceFeatureTest(unittest.TestCase):
 
         response = get_daily_stock_prices(request, stock_quote_service=service)
 
-        self.assertEqual(response.summary.code, "005930")
-        self.assertEqual(response.prices[0].date, "20240401")
-        self.assertEqual(response.prices[0].close_price, 70500.0)
+        self.assertEqual(response[0].date, "20240401")
+        self.assertEqual(response[0].close_price, 70500.0)
 
 
 if __name__ == "__main__":

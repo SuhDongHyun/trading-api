@@ -1,10 +1,6 @@
 import unittest
 
-from stock.domain.price import (
-    DailyStockPrice,
-    DailyStockPriceResult,
-    DailyStockPriceSummary,
-)
+from stock.domain.price import DailyStockPrice
 from stock.interface.controller.stock_quote_controller import get_rsi, get_rsi_signal
 from stock.interface.schema.stock_quote import RsiRequest, RsiSignalRequest
 from stock.service.stock_quote_service import StockQuoteService
@@ -30,10 +26,7 @@ class FakeApiClient:
             self._price("20240403", 12.0),
             self._price("20240404", 18.0),
         ]
-        return DailyStockPriceResult(
-            summary=DailyStockPriceSummary(name="삼성전자", code="005930"),
-            prices=prices,
-        )
+        return [price for price in prices if start_date <= price.date <= end_date]
 
     def _price(self, date: str, close_price: float):
         """테스트용 DailyStockPrice 객체를 만든다."""
@@ -71,10 +64,7 @@ class HistoricalRsiApiClient(FakeApiClient):
             self._price("20240409", 14.0),
             self._price("20240410", 12.0),
         ]
-        return DailyStockPriceResult(
-            summary=DailyStockPriceSummary(name="삼성전자", code="005930"),
-            prices=prices,
-        )
+        return [price for price in prices if start_date <= price.date <= end_date]
 
     def _price(self, date: str, close_price: float):
         """테스트용 DailyStockPrice 객체를 만든다."""
@@ -109,17 +99,16 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
             end_date="20240404",
             period="D",
             adjusted_price=True,
-            rsi_period=3,
+            rsi_window=3,
         )
 
         self.assertEqual(
             api_client.calls,
-            [("J", "005930", "20240326", "20240404", "D", True)],
+            [("J", "005930", "20240327", "20240404", "D", True)],
         )
-        self.assertEqual(result.summary.code, "005930")
-        self.assertEqual(len(result.values), 1)
-        self.assertEqual(result.values[0].date, "20240404")
-        self.assertAlmostEqual(result.values[0].rsi, 83.3333, places=4)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].date, "20240404")
+        self.assertAlmostEqual(result[0].value, 83.3333, places=4)
 
     def test_service_fetches_history_and_returns_requested_rsi_range(self):
         """RSI 계산 이력을 확보한 뒤 요청 구간만 반환하는지 검증한다."""
@@ -134,19 +123,19 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
             end_date="20240410",
             period="D",
             adjusted_price=True,
-            rsi_period=3,
+            rsi_window=3,
         )
 
         self.assertEqual(
             api_client.calls,
-            [("J", "005930", "20240330", "20240410", "D", True)],
+            [("J", "005930", "20240402", "20240409", "D", True)],
         )
         self.assertEqual(
-            [value.date for value in result.values],
-            ["20240405", "20240408", "20240409", "20240410"],
+            [value.date for value in result],
+            ["20240405", "20240408", "20240409"],
         )
-        self.assertAlmostEqual(result.values[0].rsi, 100.0, places=4)
-        self.assertAlmostEqual(result.values[-1].rsi, 29.6296, places=4)
+        self.assertAlmostEqual(result[0].value, 100.0, places=4)
+        self.assertAlmostEqual(result[-1].value, 33.3333, places=4)
 
     def test_controller_returns_rsi_response_schema(self):
         """Controller가 RSI 결과를 응답 스키마로 변환하는지 검증한다."""
@@ -158,15 +147,14 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
             end_date="20240404",
             period="D",
             adjusted_price=True,
-            rsi_period=3,
+            rsi_window=3,
         )
         service = StockQuoteService(FakeApiClient())
 
         response = get_rsi(request, stock_quote_service=service)
 
-        self.assertEqual(response.summary.name, "삼성전자")
-        self.assertEqual(response.values[0].date, "20240404")
-        self.assertAlmostEqual(response.values[0].rsi, 83.3333, places=4)
+        self.assertEqual(response[0].date, "20240404")
+        self.assertAlmostEqual(response[0].rsi, 83.3333, places=4)
 
     def test_controller_returns_rsi_signal_response_schema(self):
         """Controller가 RSI 신호 결과를 응답 스키마로 변환하는지 검증한다."""
@@ -178,20 +166,19 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
             end_date="20240410",
             period="D",
             adjusted_price=True,
-            rsi_period=3,
-            overbought_threshold=70.0,
-            oversold_threshold=30.0,
+            rsi_window=3,
+            ema_window=2,
+            ema_warmup_days=2,
         )
         service = StockQuoteService(HistoricalRsiApiClient())
 
         response = get_rsi_signal(request, stock_quote_service=service)
 
-        self.assertEqual(response.summary.name, "삼성전자")
         self.assertEqual(
-            [value.signal for value in response.values],
-            ["OVERBOUGHT", "NEUTRAL", "NEUTRAL", "OVERSOLD"],
+            [value.signal for value in response],
+            ["neutral", "neutral", "neutral"],
         )
-        self.assertAlmostEqual(response.values[-1].rsi, 29.6296, places=4)
+        self.assertAlmostEqual(response[-1].rsi, 48.1481, places=4)
 
 
 if __name__ == "__main__":
