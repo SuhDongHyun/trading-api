@@ -3,25 +3,16 @@ from dependency_injector.wiring import inject, Provide
 
 from container import Container
 from stock.interface.schema.stock_quote import (
-    DailyStockPriceRequest,
-    DailyStockPriceResponse,
-    DailyStockPriceSummaryResponse,
-    MovingAverageRequest,
-    MovingAverageResponse,
-    OverboughtOversoldRequest,
-    OverboughtOversoldResultResponse,
-    OverboughtOversoldValueResponse,
-    RsiRequest,
-    RsiResultResponse,
-    RsiSignalRequest,
-    RsiSignalResultResponse,
-    RsiSignalValueResponse,
-    RsiValueResponse,
-    SlowStochasticRequest,
-    SlowStochasticResultResponse,
-    SlowStochasticValueResponse,
     StockInfoRequest,
     StockInfoResponse,
+    DailyStockPriceRequest,
+    DailyStockPriceResponse,
+    MovingAverageRequest,
+    MovingAverageResponse,
+    RsiRequest,
+    RsiResponse,
+    RsiSignalRequest,
+    RsiSignalResponse,
 )
 from stock.service.stock_quote_service import StockQuoteService
 
@@ -128,45 +119,7 @@ def get_moving_average(
     ]
 
 
-@router.post("/indicator/slow-stochastic", response_model=SlowStochasticResultResponse)
-@inject
-def get_slow_stochastic(
-    request: SlowStochasticRequest,
-    stock_quote_service: StockQuoteService = Depends(
-        Provide[Container.stock_quote_service]
-    ),
-):
-    """Slow Stochastic 지표 요청을 처리한다."""
-
-    indicator = stock_quote_service.get_slow_stochastic(
-        market=request.market,
-        code=request.code,
-        start_date=request.start_date,
-        end_date=request.end_date,
-        period=request.period,
-        adjusted_price=request.adjusted_price,
-        k_period=request.k_period,
-        k_smoothing_period=request.k_smoothing_period,
-        d_period=request.d_period,
-    )
-
-    return SlowStochasticResultResponse(
-        summary=DailyStockPriceSummaryResponse(
-            name=indicator.summary.name,
-            code=indicator.summary.code,
-        ),
-        values=[
-            SlowStochasticValueResponse(
-                date=value.date,
-                slow_k=value.slow_k,
-                slow_d=value.slow_d,
-            )
-            for value in indicator.values
-        ],
-    )
-
-
-@router.post("/indicator/rsi", response_model=RsiResultResponse)
+@router.post("/indicator/rsi", response_model=list[RsiResponse])
 @inject
 def get_rsi(
     request: RsiRequest,
@@ -176,32 +129,26 @@ def get_rsi(
 ):
     """RSI 지표 요청을 처리한다."""
 
-    indicator = stock_quote_service.get_rsi(
+    rsi_values = stock_quote_service.get_rsi(
         market=request.market,
         code=request.code,
         start_date=request.start_date,
         end_date=request.end_date,
         period=request.period,
         adjusted_price=request.adjusted_price,
-        rsi_period=request.rsi_period,
+        rsi_window=request.rsi_window,
     )
 
-    return RsiResultResponse(
-        summary=DailyStockPriceSummaryResponse(
-            name=indicator.summary.name,
-            code=indicator.summary.code,
-        ),
-        values=[
-            RsiValueResponse(
-                date=value.date,
-                rsi=value.rsi,
-            )
-            for value in indicator.values
-        ],
-    )
+    return [
+        RsiResponse(
+            date=rsi.date,
+            rsi=rsi.value,
+        )
+        for rsi in rsi_values
+    ]
 
 
-@router.post("/indicator/rsi-signal", response_model=RsiSignalResultResponse)
+@router.post("/indicator/rsi-signal", response_model=list[RsiSignalResponse])
 @inject
 def get_rsi_signal(
     request: RsiSignalRequest,
@@ -211,77 +158,23 @@ def get_rsi_signal(
 ):
     """RSI 과매수·과매도 신호 요청을 처리한다."""
 
-    signal = stock_quote_service.get_rsi_signal(
+    rsi_signals = stock_quote_service.get_rsi_signal(
         market=request.market,
         code=request.code,
         start_date=request.start_date,
         end_date=request.end_date,
         period=request.period,
         adjusted_price=request.adjusted_price,
-        rsi_period=request.rsi_period,
-        overbought_threshold=request.overbought_threshold,
-        oversold_threshold=request.oversold_threshold,
+        rsi_window=request.rsi_window,
+        ema_window=request.ema_window,
+        ema_warmup_days=request.ema_warmup_days,
     )
 
-    return RsiSignalResultResponse(
-        summary=DailyStockPriceSummaryResponse(
-            name=signal.summary.name,
-            code=signal.summary.code,
-        ),
-        values=[
-            RsiSignalValueResponse(
-                date=value.date,
-                rsi=value.rsi,
-                signal=value.signal,
-            )
-            for value in signal.values
-        ],
-    )
-
-
-@router.post(
-    "/indicator/overbought-oversold",
-    response_model=OverboughtOversoldResultResponse,
-)
-@inject
-def get_overbought_oversold(
-    request: OverboughtOversoldRequest,
-    stock_quote_service: StockQuoteService = Depends(
-        Provide[Container.stock_quote_service]
-    ),
-):
-    """복합 과매수·과매도 신호 요청을 처리한다."""
-
-    signal = stock_quote_service.get_overbought_oversold(
-        market=request.market,
-        code=request.code,
-        start_date=request.start_date,
-        end_date=request.end_date,
-        period=request.period,
-        adjusted_price=request.adjusted_price,
-        rsi_period=request.rsi_period,
-        stochastic_k_period=request.stochastic_k_period,
-        stochastic_k_smoothing_period=request.stochastic_k_smoothing_period,
-        stochastic_d_period=request.stochastic_d_period,
-        rsi_overbought_threshold=request.rsi_overbought_threshold,
-        rsi_oversold_threshold=request.rsi_oversold_threshold,
-        stochastic_overbought_threshold=request.stochastic_overbought_threshold,
-        stochastic_oversold_threshold=request.stochastic_oversold_threshold,
-    )
-
-    return OverboughtOversoldResultResponse(
-        summary=DailyStockPriceSummaryResponse(
-            name=signal.summary.name,
-            code=signal.summary.code,
-        ),
-        values=[
-            OverboughtOversoldValueResponse(
-                date=value.date,
-                rsi=value.rsi,
-                slow_k=value.slow_k,
-                slow_d=value.slow_d,
-                signal=value.signal,
-            )
-            for value in signal.values
-        ],
-    )
+    return [
+        RsiSignalResponse(
+            date=rsi_signal.date,
+            rsi=rsi_signal.value,
+            signal=rsi_signal.signal,
+        )
+        for rsi_signal in rsi_signals
+    ]
