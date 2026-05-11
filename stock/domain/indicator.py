@@ -54,28 +54,11 @@ class RsiSignalResult:
 
 
 @dataclass
-class MovingAverageValue:
-    """일별 가격 정보에 이동평균 값을 덧붙인 결과."""
+class MovingAverage:
+    """특정 날짜의 이동평균 값."""
 
     date: str
-    open_price: float
-    high_price: float
-    low_price: float
-    close_price: float
-    accumulated_volume: int
-    accumulated_trading_value: float
-    price_diff: float
-    price_diff_sign: str
-    change_flag: str
-    moving_average: float | None
-
-
-@dataclass
-class MovingAverageResult:
-    """종목 요약과 이동평균 시계열 결과."""
-
-    summary: DailyStockPriceSummary
-    values: list[MovingAverageValue]
+    value: float
 
 
 @dataclass
