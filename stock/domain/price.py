@@ -31,3 +31,18 @@ class DailyStockPriceResult:
 
     summary: DailyStockPriceSummary
     prices: list[DailyStockPrice]
+
+    def __iter__(self):
+        """외부 응답 계층이 가격 목록만 순회할 수 있도록 한다."""
+
+        return iter(self.prices)
+
+    def __len__(self) -> int:
+        """가격 목록 길이를 그대로 노출한다."""
+
+        return len(self.prices)
+
+    def __getitem__(self, index: int) -> DailyStockPrice:
+        """가격 목록 인덱스 접근을 그대로 위임한다."""
+
+        return self.prices[index]

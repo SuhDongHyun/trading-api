@@ -11,7 +11,7 @@ from stock.domain.price import (
 )
 from stock.domain.stock import StockInfo
 from stock.infra.kis.kis_http_client import api_get
-from stock.infra.kis.kis_util import _to_float, _to_int, split_date_range
+from stock.infra.kis.kis_util import to_float, to_int, split_date_range
 
 
 class KISClient(IApiClient):
@@ -130,13 +130,13 @@ class KISClient(IApiClient):
             prices=[
                 DailyStockPrice(
                     date=price["stck_bsop_date"],
-                    open_price=_to_float(price["stck_oprc"]),
-                    high_price=_to_float(price["stck_hgpr"]),
-                    low_price=_to_float(price["stck_lwpr"]),
-                    close_price=_to_float(price["stck_clpr"]),
-                    accumulated_volume=_to_int(price["acml_vol"]),
-                    accumulated_trading_value=_to_float(price["acml_tr_pbmn"]),
-                    price_diff=_to_float(price["prdy_vrss"]),
+                    open_price=to_float(price["stck_oprc"]),
+                    high_price=to_float(price["stck_hgpr"]),
+                    low_price=to_float(price["stck_lwpr"]),
+                    close_price=to_float(price["stck_clpr"]),
+                    accumulated_volume=to_int(price["acml_vol"]),
+                    accumulated_trading_value=to_float(price["acml_tr_pbmn"]),
+                    price_diff=to_float(price["prdy_vrss"]),
                     price_diff_sign=price["prdy_vrss_sign"],
                     change_flag=price["mod_yn"],
                 )
