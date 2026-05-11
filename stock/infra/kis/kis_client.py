@@ -4,14 +4,10 @@ from config import settings
 
 from stock.domain.account import Position, Account, AccountSummary
 from stock.domain.adapter.api_client import IApiClient
-from stock.domain.price import (
-    DailyStockPrice,
-    DailyStockPriceResult,
-    DailyStockPriceSummary,
-)
+from stock.domain.price import DailyStockPrice
 from stock.domain.stock import StockInfo
 from stock.infra.kis.kis_http_client import api_get
-from stock.infra.kis.kis_util import _to_float, _to_int, split_date_range
+from stock.infra.kis.kis_util import to_float, to_int, split_date_range
 
 
 class KISClient(IApiClient):
@@ -100,7 +96,7 @@ class KISClient(IApiClient):
         end_date: str,
         period: str,
         adjusted_price: bool = True,
-    ) -> DailyStockPriceResult:
+    ) -> list[DailyStockPrice]:
         """KIS 일봉 차트 응답을 요약과 가격 목록으로 변환한다."""
 
         date_ranges = split_date_range(start_date, end_date)
@@ -119,27 +115,20 @@ class KISClient(IApiClient):
             resp = api_get(path=path, params=params, tr_id="FHKST03010100")
             bodies.append(resp.json())
 
-        summary = bodies[0]["output1"]
         prices = list(chain.from_iterable(body["output2"][::-1] for body in bodies))
 
-        return DailyStockPriceResult(
-            summary=DailyStockPriceSummary(
-                name=summary["hts_kor_isnm"],
-                code=summary["stck_shrn_iscd"],
-            ),
-            prices=[
-                DailyStockPrice(
-                    date=price["stck_bsop_date"],
-                    open_price=_to_float(price["stck_oprc"]),
-                    high_price=_to_float(price["stck_hgpr"]),
-                    low_price=_to_float(price["stck_lwpr"]),
-                    close_price=_to_float(price["stck_clpr"]),
-                    accumulated_volume=_to_int(price["acml_vol"]),
-                    accumulated_trading_value=_to_float(price["acml_tr_pbmn"]),
-                    price_diff=_to_float(price["prdy_vrss"]),
-                    price_diff_sign=price["prdy_vrss_sign"],
-                    change_flag=price["mod_yn"],
-                )
-                for price in prices
-            ],
-        )
+        return [
+            DailyStockPrice(
+                date=price["stck_bsop_date"],
+                open_price=to_float(price["stck_oprc"]),
+                high_price=to_float(price["stck_hgpr"]),
+                low_price=to_float(price["stck_lwpr"]),
+                close_price=to_float(price["stck_clpr"]),
+                accumulated_volume=to_int(price["acml_vol"]),
+                accumulated_trading_value=to_float(price["acml_tr_pbmn"]),
+                price_diff=to_float(price["prdy_vrss"]),
+                price_diff_sign=price["prdy_vrss_sign"],
+                change_flag=price["mod_yn"],
+            )
+            for price in prices
+        ]
