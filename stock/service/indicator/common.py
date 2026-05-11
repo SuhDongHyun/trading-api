@@ -63,12 +63,6 @@ def _shift_months(date, months: int):
     return (pd.Timestamp(date) + pd.DateOffset(months=months)).date()
 
 
-def simple_moving_average(values: list[float], period: int) -> float:
-    """기존 지표 구현이 쓰는 단순 이동평균 helper를 유지한다."""
-
-    return sum(values[-period:]) / period
-
-
 def normalize_period_start(date, period):
     """기간의 시작 날짜를 정규화한다."""
 

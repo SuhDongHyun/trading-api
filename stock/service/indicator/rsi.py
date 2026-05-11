@@ -1,78 +1,77 @@
 """RSI 지표와 RSI 기반 신호 계산."""
 
-from stock.domain.indicator import RsiValue
+import pandas as pd
+from itertools import accumulate
+
+from stock.domain.indicator import Rsi, RsiSignal
 from stock.domain.price import DailyStockPrice
 
 
 def calculate_rsi_values(
     prices: list[DailyStockPrice],
     rsi_period: int,
-) -> list[RsiValue]:
-    """Wilder 방식의 평균 상승/하락폭을 사용해 RSI 시계열을 계산한다."""
+) -> list[Rsi]:
+    """조회한 가격 목록에서 요청 구간만 잘라 RSI 값을 붙인다."""
+    if len(prices) < rsi_period + 1:
+        raise ValueError("가격 데이터 개수가 RSI 계산에 필요한 기간보다 작습니다.")
 
     sorted_prices = sorted(prices, key=lambda price: price.date)
-    values: list[RsiValue] = []
+    sorted_dates = [price.date for price in sorted_prices]
+    close = pd.Series([price.close_price for price in sorted_prices], dtype=float)
 
-    if len(sorted_prices) <= rsi_period:
-        return values
+    delta = close.diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
 
-    changes = [
-        sorted_prices[index].close_price - sorted_prices[index - 1].close_price
-        for index in range(1, len(sorted_prices))
+    avg_gain = gain.rolling(window=rsi_period).mean()
+    avg_loss = loss.rolling(window=rsi_period).mean()
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+
+    return [
+        Rsi(date=date, value=value)
+        for date, value in list(zip(sorted_dates, rsi))[rsi_period:]
     ]
-    gains = [max(change, 0.0) for change in changes]
-    losses = [abs(min(change, 0.0)) for change in changes]
 
-    average_gain = sum(gains[:rsi_period]) / rsi_period
-    average_loss = sum(losses[:rsi_period]) / rsi_period
-    values.append(
-        RsiValue(
-            date=sorted_prices[rsi_period].date,
-            rsi=calculate_rsi(average_gain, average_loss),
+
+def calculate_rsi_signals(
+    rsi_values: list[Rsi], ema_window: int, ema_warmup_days: int
+) -> list[RsiSignal]:
+    """RSI 값에 과매수·과매도 신호를 붙여 반환한다."""
+
+    ema_alpha = 2 / (ema_window + 1)
+
+    clipped_rsi_signals = list(
+        accumulate(
+            (rsi.value for rsi in rsi_values),
+            lambda signal, rsi: rsi * ema_alpha + signal * (1 - ema_alpha),
         )
-    )
+    )[ema_warmup_days - 2 :]
+    clipped_rsi_values = rsi_values[ema_warmup_days - 2 :]
 
-    for index in range(rsi_period, len(changes)):
-        average_gain = ((average_gain * (rsi_period - 1)) + gains[index]) / rsi_period
-        average_loss = ((average_loss * (rsi_period - 1)) + losses[index]) / rsi_period
-        values.append(
-            RsiValue(
-                date=sorted_prices[index + 1].date,
-                rsi=calculate_rsi(average_gain, average_loss),
-            )
+    return [
+        RsiSignal(
+            date=curr_rsi.date,
+            value=curr_signal,
+            signal=crossing_signal(
+                prev_rsi.value, curr_rsi.value, prev_signal, curr_signal
+            ),
         )
-
-    return values
-
-
-def filter_rsi_values_to_requested_range(
-    values: list[RsiValue],
-    start_date: str,
-    end_date: str,
-) -> list[RsiValue]:
-    """RSI 결과 중 사용자가 요청한 날짜 범위만 남긴다."""
-
-    return [value for value in values if start_date <= value.date <= end_date]
+        for prev_rsi, curr_rsi, prev_signal, curr_signal in zip(
+            clipped_rsi_values[:-1],
+            clipped_rsi_values[1:],
+            clipped_rsi_signals[:-1],
+            clipped_rsi_signals[1:],
+        )
+    ]
 
 
-def calculate_rsi(average_gain: float, average_loss: float) -> float:
-    """평균 상승폭과 하락폭으로 단일 RSI 값을 계산한다."""
-
-    if average_loss == 0:
-        return 100.0
-    relative_strength = average_gain / average_loss
-    return 100 - (100 / (1 + relative_strength))
-
-
-def classify_rsi_signal(
-    rsi: float,
-    overbought_threshold: float,
-    oversold_threshold: float,
+def crossing_signal(
+    prev_rsi: float, curr_rsi: float, prev_signal: float, curr_signal: float
 ) -> str:
-    """RSI 임계값만 사용해 과매수·과매도·중립 신호를 분류한다."""
-
-    if rsi >= overbought_threshold:
-        return "OVERBOUGHT"
-    if rsi <= oversold_threshold:
-        return "OVERSOLD"
-    return "NEUTRAL"
+    """RSI가 기준선을 상향/하향 돌파했는지에 따라 매수/매도 신호를 반환한다."""
+    if prev_rsi < prev_signal and curr_rsi > curr_signal:
+        return "buy"
+    if prev_rsi > prev_signal and curr_rsi < curr_signal:
+        return "sell"
+    return "neutral"
