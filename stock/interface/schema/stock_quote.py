@@ -65,13 +65,6 @@ class DailyStockPriceResponse(BaseModel):
     change_flag: str
 
 
-class DailyStockPriceResultResponse(BaseModel):
-    """종목 요약과 일봉 가격 목록 응답."""
-
-    summary: DailyStockPriceSummaryResponse
-    prices: list[DailyStockPriceResponse]
-
-
 class SlowStochasticRequest(BaseModel):
     """Slow Stochastic 계산 요청 파라미터."""
 

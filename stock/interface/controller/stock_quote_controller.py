@@ -5,7 +5,6 @@ from container import Container
 from stock.interface.schema.stock_quote import (
     DailyStockPriceRequest,
     DailyStockPriceResponse,
-    DailyStockPriceResultResponse,
     DailyStockPriceSummaryResponse,
     MovingAverageRequest,
     MovingAverageResultResponse,
@@ -65,7 +64,7 @@ def get_stock_info(
     )
 
 
-@router.post("/daily", response_model=DailyStockPriceResultResponse)
+@router.post("/daily", response_model=list[DailyStockPriceResponse])
 @inject
 def get_daily_stock_prices(
     request: DailyStockPriceRequest,
@@ -84,27 +83,21 @@ def get_daily_stock_prices(
         adjusted_price=request.adjusted_price,
     )
 
-    return DailyStockPriceResultResponse(
-        summary=DailyStockPriceSummaryResponse(
-            name=daily_prices.summary.name,
-            code=daily_prices.summary.code,
-        ),
-        prices=[
-            DailyStockPriceResponse(
-                date=price.date,
-                open_price=price.open_price,
-                high_price=price.high_price,
-                low_price=price.low_price,
-                close_price=price.close_price,
-                accumulated_volume=price.accumulated_volume,
-                accumulated_trading_value=price.accumulated_trading_value,
-                price_diff=price.price_diff,
-                price_diff_sign=price.price_diff_sign,
-                change_flag=price.change_flag,
-            )
-            for price in daily_prices.prices
-        ],
-    )
+    return [
+        DailyStockPriceResponse(
+            date=price.date,
+            open_price=price.open_price,
+            high_price=price.high_price,
+            low_price=price.low_price,
+            close_price=price.close_price,
+            accumulated_volume=price.accumulated_volume,
+            accumulated_trading_value=price.accumulated_trading_value,
+            price_diff=price.price_diff,
+            price_diff_sign=price.price_diff_sign,
+            change_flag=price.change_flag,
+        )
+        for price in daily_prices
+    ]
 
 
 @router.post("/daily/moving-average", response_model=MovingAverageResultResponse)

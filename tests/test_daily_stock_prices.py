@@ -99,6 +99,7 @@ class DailyStockPriceFeatureTest(unittest.TestCase):
             [("J", "005930", "20240401", "20240430", "D", True)],
         )
         self.assertEqual(result.summary.code, "005930")
+        self.assertEqual(result[0].date, "20240401")
 
     def test_service_keeps_price_history_logic_inside_stock_quote_service(self):
         """가격 이력 조회 책임을 별도 서비스로 노출하지 않는지 검증한다."""
@@ -156,9 +157,8 @@ class DailyStockPriceFeatureTest(unittest.TestCase):
 
         response = get_daily_stock_prices(request, stock_quote_service=service)
 
-        self.assertEqual(response.summary.code, "005930")
-        self.assertEqual(response.prices[0].date, "20240401")
-        self.assertEqual(response.prices[0].close_price, 70500.0)
+        self.assertEqual(response[0].date, "20240401")
+        self.assertEqual(response[0].close_price, 70500.0)
 
 
 if __name__ == "__main__":
