@@ -107,7 +107,6 @@ class RsiSignalRequest(BaseModel):
     adjusted_price: bool = True
     rsi_window: int = 14
     ema_window: int = 9
-    ema_warmup_days: int = 42
 
 
 class RsiSignalResponse(BaseModel):

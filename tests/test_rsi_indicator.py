@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from stock.domain.price import DailyStockPrice
 from stock.interface.controller.stock_quote_controller import get_rsi, get_rsi_signal
@@ -168,11 +169,12 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
             adjusted_price=True,
             rsi_window=3,
             ema_window=2,
-            ema_warmup_days=2,
         )
         service = StockQuoteService(HistoricalRsiApiClient())
 
-        response = get_rsi_signal(request, stock_quote_service=service)
+        with patch("stock.service.stock_quote_service.calculate_ema_warmup_days") as warmup:
+            warmup.return_value = 2
+            response = get_rsi_signal(request, stock_quote_service=service)
 
         self.assertEqual(
             [value.signal for value in response],

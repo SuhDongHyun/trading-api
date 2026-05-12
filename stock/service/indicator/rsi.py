@@ -41,13 +41,14 @@ def calculate_rsi_signals(
 
     ema_alpha = 2 / (ema_window + 1)
 
+    sorted_rsi_values = sorted(rsi_values, key=lambda rsi: rsi.date)
     clipped_rsi_signals = list(
         accumulate(
-            (rsi.value for rsi in rsi_values),
+            (rsi.value for rsi in sorted_rsi_values),
             lambda signal, rsi: rsi * ema_alpha + signal * (1 - ema_alpha),
         )
     )[ema_warmup_days - 2 :]
-    clipped_rsi_values = rsi_values[ema_warmup_days - 2 :]
+    clipped_rsi_values = sorted_rsi_values[ema_warmup_days - 2 :]
 
     return [
         RsiSignal(
