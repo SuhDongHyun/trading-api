@@ -167,7 +167,6 @@ def get_rsi_signal(
         adjusted_price=request.adjusted_price,
         rsi_window=request.rsi_window,
         ema_window=request.ema_window,
-        ema_warmup_days=request.ema_warmup_days,
     )
 
     return [

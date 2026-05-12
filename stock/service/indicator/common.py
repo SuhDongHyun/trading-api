@@ -1,5 +1,6 @@
 """여러 기술적 지표 계산에서 공유하는 보조 함수."""
 
+import math
 import pandas as pd
 from datetime import datetime, timedelta
 
@@ -94,6 +95,15 @@ def calculate_indicator_fetch_start_date(start_date, period, window):
         raise ValueError(f"지원하지 않는 기간: {period}")
 
     return _format_date(calculator(_to_date(start_date), window))
+
+
+def calculate_ema_warmup_days(
+    ema_window: int,
+    tolerance: float = 0.001,
+    max_seed_error: float = 100.0,
+) -> int:
+    alpha = 2 / (ema_window + 1)
+    return math.ceil(math.log(tolerance / max_seed_error) / math.log(1 - alpha))
 
 
 def resolve_indicator_date_range(

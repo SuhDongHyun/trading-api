@@ -1,7 +1,15 @@
 from stock.domain.adapter.api_client import IApiClient
-from stock.service.indicator.common import resolve_indicator_date_range
-from stock.service.indicator.moving_average import calculate_moving_average_values
-from stock.service.indicator.rsi import calculate_rsi_signals, calculate_rsi_values
+from stock.service.indicator.common import (
+    resolve_indicator_date_range,
+    calculate_ema_warmup_days,
+)
+from stock.service.indicator.moving_average import (
+    calculate_moving_average_values,
+)
+from stock.service.indicator.rsi import (
+    calculate_rsi_values,
+    calculate_rsi_signals,
+)
 
 
 class StockQuoteService:
@@ -47,7 +55,7 @@ class StockQuoteService:
         adjusted_price: bool = True,
         window: int = 5,
     ):
-        """요청 구간의 이동평균 값을 일봉 시세에 붙여 반환한다."""
+        """요청 구간의 이동평균 값을 반환한다."""
 
         if window <= 0:
             raise ValueError("window must be positive")
@@ -107,9 +115,10 @@ class StockQuoteService:
         adjusted_price: bool = True,
         rsi_window: int = 14,
         ema_window: int = 9,
-        ema_warmup_days: int = 42,
     ):
         """RSI 값에 과매수·과매도 신호를 붙여 반환한다."""
+
+        ema_warmup_days = calculate_ema_warmup_days(ema_window)
 
         fetch_start_date, valid_end_date = resolve_indicator_date_range(
             start_date, end_date, period, ema_warmup_days
