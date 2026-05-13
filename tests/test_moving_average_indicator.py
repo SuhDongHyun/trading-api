@@ -127,12 +127,16 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
         self.assertEqual([value.value for value in result], [5.8, 7.2, 8.6])
 
     def test_calculates_fetch_start_from_period_anchor(self):
-        """W/M/Y는 period 기준 시작일에서 window-1개 이전 bar까지 조회한다."""
+        """W/M/Y는 period 첫 거래일에서 window-1개 이전 bar까지 조회한다."""
 
         self.assertEqual(normalize_period_start("20260401", "D"), "20260401")
         self.assertEqual(normalize_period_start("20260401", "W"), "20260330")
         self.assertEqual(normalize_period_start("20260415", "M"), "20260401")
-        self.assertEqual(normalize_period_start("20260415", "Y"), "20260101")
+        self.assertEqual(normalize_period_start("20260415", "Y"), "20260102")
+        self.assertEqual(normalize_period_start("20260101", "D"), "20260102")
+        self.assertEqual(normalize_period_start("20260101", "W"), "20251229")
+        self.assertEqual(normalize_period_start("20250315", "M"), "20250304")
+        self.assertEqual(normalize_period_start("20260115", "Y"), "20260102")
 
         self.assertEqual(
             calculate_indicator_fetch_start_date("20260401", "D", 14),
@@ -146,13 +150,13 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
         )
         self.assertEqual(
             calculate_indicator_fetch_start_date("20260401", "M", 14),
-            "20250301",
+            "20250304",
         )
         self.assertEqual(
             calculate_indicator_fetch_start_date(
                 normalize_period_start("20260401", "Y"), "Y", 14
             ),
-            "20130101",
+            "20130102",
         )
 
     def test_weekly_moving_average_filters_by_week_anchor(self):
@@ -207,10 +211,10 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
                     (market, code, start_date, end_date, period, adjusted_price)
                 )
                 return [
-                    self._price("20260201", 10.0),
-                    self._price("20260301", 20.0),
+                    self._price("20260202", 10.0),
+                    self._price("20260303", 20.0),
                     self._price("20260401", 30.0),
-                    self._price("20260501", 40.0),
+                    self._price("20260504", 40.0),
                 ]
 
         api_client = MonthlyApiClient()
@@ -228,11 +232,11 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
 
         self.assertEqual(
             api_client.calls,
-            [("J", "005930", "20260201", "20260501", "M", True)],
+            [("J", "005930", "20260202", "20260504", "M", True)],
         )
         self.assertEqual(
             [value.date for value in result],
-            ["20260401", "20260501"],
+            ["20260401", "20260504"],
         )
         self.assertEqual(result[0].value, 20.0)
         self.assertEqual(result[1].value, 30.0)
@@ -248,10 +252,10 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
                     (market, code, start_date, end_date, period, adjusted_price)
                 )
                 return [
-                    self._price("20240101", 10.0),
-                    self._price("20250101", 20.0),
-                    self._price("20260101", 30.0),
-                    self._price("20270101", 40.0),
+                    self._price("20240102", 10.0),
+                    self._price("20250102", 20.0),
+                    self._price("20260102", 30.0),
+                    self._price("20270104", 40.0),
                 ]
 
         api_client = YearlyApiClient()
@@ -269,11 +273,11 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
 
         self.assertEqual(
             api_client.calls,
-            [("J", "005930", "20240101", "20270101", "Y", True)],
+            [("J", "005930", "20240102", "20270104", "Y", True)],
         )
         self.assertEqual(
             [value.date for value in result],
-            ["20260101", "20270101"],
+            ["20260102", "20270104"],
         )
         self.assertEqual(result[0].value, 20.0)
         self.assertEqual(result[1].value, 30.0)
