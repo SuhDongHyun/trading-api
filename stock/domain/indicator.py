@@ -24,3 +24,11 @@ class RsiSignal:
     date: str
     value: float
     signal: str
+
+
+@dataclass
+class Macd:
+    """특정 날짜의 MACD 지표 값."""
+
+    date: str
+    value: float
