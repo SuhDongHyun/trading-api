@@ -118,7 +118,7 @@ class StockQuoteService:
     ):
         """RSI 값에 과매수·과매도 신호를 붙여 반환한다."""
 
-        ema_warmup_days = calculate_ema_warmup_days(ema_window)
+        ema_warmup_days = calculate_ema_warmup_days(ema_window, period)
 
         fetch_start_date, valid_end_date = resolve_indicator_date_range(
             start_date, end_date, period, ema_warmup_days
