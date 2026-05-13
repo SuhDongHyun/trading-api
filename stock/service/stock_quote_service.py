@@ -5,6 +5,7 @@ from stock.service.indicator.common import (
 )
 from stock.service.indicator.moving_average import (
     calculate_moving_average_values,
+    calculate_macd_values,
 )
 from stock.service.indicator.rsi import (
     calculate_rsi_values,
@@ -135,3 +136,40 @@ class StockQuoteService:
         )
 
         return calculate_rsi_signals(rsi_values, ema_window, ema_warmup_days)
+
+    def get_macd(
+        self,
+        market: str,
+        code: str,
+        start_date: str,
+        end_date: str,
+        period: str,
+        adjusted_price: bool = True,
+        ema_short_window: int = 12,
+        ema_long_window: int = 26,
+    ):
+        """요청 구간의 MACD 지표 시계열을 계산한다."""
+
+        if ema_short_window <= 0 or ema_long_window <= 0:
+            raise ValueError("window must be positive")
+
+        ema_warmup_days = calculate_ema_warmup_days(ema_long_window, period)
+        fetch_start_date, valid_end_date = resolve_indicator_date_range(
+            start_date, end_date, period, ema_warmup_days
+        )
+
+        period_prices = self.get_daily_stock_prices(
+            market=market,
+            code=code,
+            start_date=fetch_start_date,
+            end_date=valid_end_date,
+            period=period,
+            adjusted_price=adjusted_price,
+        )
+
+        return calculate_macd_values(
+            prices=period_prices,
+            ema_short_window=ema_short_window,
+            ema_long_window=ema_long_window,
+            ema_warmup_days=ema_warmup_days,
+        )

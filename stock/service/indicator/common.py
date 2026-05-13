@@ -9,7 +9,7 @@ from stock.service.indicator.period_dates import (
 )
 
 EMA_WARMUP_TOLERANCE_BY_PERIOD = {
-    "D": 0.001,
+    "D": 0.0001,
     "W": 0.0001,
     "M": 0.00001,
     "Y": 0.000001,
@@ -28,7 +28,7 @@ def calculate_ema_warmup_days(
     max_seed_error: float = 100.0,
 ) -> int:
     alpha = 2 / (ema_window + 1)
-    tolerance = EMA_WARMUP_TOLERANCE_BY_PERIOD.get(period, 0.001)
+    tolerance = EMA_WARMUP_TOLERANCE_BY_PERIOD.get(period, 0.0001)
     return math.ceil(math.log(tolerance / max_seed_error) / math.log(1 - alpha))
 
 

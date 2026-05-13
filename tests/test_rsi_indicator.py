@@ -180,7 +180,7 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
             [value.signal for value in response],
             ["neutral", "neutral", "neutral"],
         )
-        self.assertAlmostEqual(response[-1].rsi, 48.1481, places=4)
+        self.assertAlmostEqual(response[-1].rsi_ema, 48.1481, places=4)
 
 
 if __name__ == "__main__":

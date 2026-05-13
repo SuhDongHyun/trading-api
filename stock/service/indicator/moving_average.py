@@ -3,7 +3,7 @@
 import numpy as np
 from itertools import accumulate
 
-from stock.domain.indicator import MovingAverage
+from stock.domain.indicator import Macd, MovingAverage
 from stock.domain.price import DailyStockPrice
 
 
@@ -53,4 +53,28 @@ def calculate_exponential_moving_average_values(
     return [
         MovingAverage(date=price.date, value=ema)
         for price, ema in zip(clipped_prices, clipped_ema_values)
+    ]
+
+
+def calculate_macd_values(
+    prices: list[DailyStockPrice],
+    ema_short_window: int,
+    ema_long_window: int,
+    ema_warmup_days: int,
+) -> list[Macd]:
+    """MACD 지표 값을 계산하여 반환한다."""
+
+    if len(prices) < ema_warmup_days:
+        raise ValueError("가격 데이터 개수가 ema_warmup_days 크기보다 작습니다.")
+
+    ema_short = calculate_exponential_moving_average_values(
+        prices, ema_short_window, ema_warmup_days
+    )
+    ema_long = calculate_exponential_moving_average_values(
+        prices, ema_long_window, ema_warmup_days
+    )
+
+    return [
+        Macd(date=short.date, value=short.value - long.value)
+        for short, long in zip(ema_short, ema_long)
     ]
