@@ -1,12 +1,14 @@
 import time
 import requests
 from typing import Optional, Dict
+from threading import Lock
 
 from config import settings
 
 # KIS 토큰은 프로세스 안에서 재사용해 불필요한 재발급을 줄인다.
 _ACCESS_TOKEN: Optional[str] = None
 _TOKEN_EXP: float = 0.0  # epoch seconds
+_TOKEN_LOCK = Lock()
 
 
 def _issue_access_token() -> tuple[str, float]:
@@ -41,8 +43,23 @@ def get_access_token(force_refresh: bool = False) -> str:
     if not force_refresh and _ACCESS_TOKEN and now < _TOKEN_EXP:
         return _ACCESS_TOKEN
 
-    _ACCESS_TOKEN, _TOKEN_EXP = _issue_access_token()
-    return _ACCESS_TOKEN
+    with _TOKEN_LOCK:
+        now = time.time()
+        if not force_refresh and _ACCESS_TOKEN and now < _TOKEN_EXP:
+            return _ACCESS_TOKEN
+
+        _ACCESS_TOKEN, _TOKEN_EXP = _issue_access_token()
+        return _ACCESS_TOKEN
+
+
+def clear_access_token_cache():
+    """프로세스 안의 KIS 액세스 토큰 캐시를 초기화한다."""
+
+    global _ACCESS_TOKEN, _TOKEN_EXP
+
+    with _TOKEN_LOCK:
+        _ACCESS_TOKEN = None
+        _TOKEN_EXP = 0.0
 
 
 def auth_headers(extra: Optional[Dict[str, str]] = None) -> Dict[str, str]:
