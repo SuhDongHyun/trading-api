@@ -19,6 +19,13 @@ FastAPI Controller  ->  Service  ->  KIS Adapter  ->  Korea Investment Open API
 - 이동평균, RSI, RSI signal, MACD 계산
 - KIS 인증 토큰 캐싱과 API 호출 속도 제한
 
+## 지표 계산
+
+RSI signal은 RSI 값 범위가 0~100인 점을 기준으로 EMA warmup을 계산합니다.
+MACD와 MACD signal은 종가 기반 EMA를 사용하므로, 현재가 조회값을 기준 가격으로
+삼아 종목 가격대에 맞는 EMA warmup 기간을 계산합니다. 이 과정에서 MACD 계열
+조회는 현재가 API를 한 번 호출한 뒤 필요한 과거 가격 데이터를 조회합니다.
+
 ## 실행
 
 Python 3.12 이상과 `uv`가 필요합니다.
@@ -99,6 +106,7 @@ curl -X POST http://localhost:9999/stock_quote/indicator/rsi \
 | `POST` | `/stock_quote/indicator/rsi` | RSI 조회 |
 | `POST` | `/stock_quote/indicator/rsi-signal` | RSI signal 조회 |
 | `POST` | `/stock_quote/indicator/macd` | MACD 조회 |
+| `POST` | `/stock_quote/indicator/macd-signal` | MACD signal 조회 |
 
 ## 테스트
 

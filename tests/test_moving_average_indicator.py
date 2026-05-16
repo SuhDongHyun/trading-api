@@ -1,6 +1,8 @@
 import unittest
+from unittest.mock import patch
 
 from stock.domain.price import DailyStockPrice
+from stock.domain.stock import StockInfo
 from stock.interface.controller.stock_quote_controller import get_moving_average
 from stock.interface.schema.stock_quote import MovingAverageRequest
 from stock.service.indicator.common import (
@@ -316,6 +318,103 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
                 adjusted_price=True,
                 window=0,
             )
+
+    def test_macd_warmup_uses_current_price_as_price_scale(self):
+        """MACD EMA warmup은 RSI 범위가 아닌 현재가 스케일로 seed error를 잡는다."""
+
+        class MacdApiClient(FakeApiClient):
+            def __init__(self):
+                super().__init__()
+                self.stock_info_calls = []
+
+            def get_stock_info(self, market, code):
+                self.stock_info_calls.append((market, code))
+                return StockInfo(
+                    market_name="KOSPI",
+                    code=code,
+                    industry="반도체",
+                    per=0.0,
+                    pbr=0.0,
+                    eps=0.0,
+                    bps=0.0,
+                    open_price=70000.0,
+                    current_price=70000.0,
+                    previous_price=69000.0,
+                    highest_price=71000.0,
+                    lowest_price=68000.0,
+                    upper_limit_price=90000.0,
+                    lower_limit_price=50000.0,
+                    current_volume=0,
+                    previous_volume=0,
+                    current_trading_value=0.0,
+                    price_diff=1000.0,
+                    price_diff_rate=1.4,
+                )
+
+        api_client = MacdApiClient()
+        service = StockQuoteService(api_client)
+
+        with patch("stock.service.stock_quote_service.calculate_ema_warmup_days") as warmup:
+            warmup.return_value = 3
+
+            service.get_macd(
+                market="J",
+                code="005930",
+                start_date="20240403",
+                end_date="20240404",
+                period="D",
+                adjusted_price=True,
+                ema_short_window=12,
+                ema_long_window=26,
+            )
+
+        self.assertEqual(api_client.stock_info_calls, [("J", "005930")])
+        warmup.assert_called_once_with(26, "D", max_seed_error=14000.0)
+
+    def test_macd_warmup_accepts_current_price_string_from_adapter(self):
+        """KIS adapter가 문자열 현재가를 넘겨도 MACD warmup 스케일을 계산한다."""
+
+        class StringPriceMacdApiClient(FakeApiClient):
+            def get_stock_info(self, market, code):
+                return StockInfo(
+                    market_name="KOSPI",
+                    code=code,
+                    industry="반도체",
+                    per=0.0,
+                    pbr=0.0,
+                    eps=0.0,
+                    bps=0.0,
+                    open_price=70000.0,
+                    current_price="70000",
+                    previous_price=69000.0,
+                    highest_price=71000.0,
+                    lowest_price=68000.0,
+                    upper_limit_price=90000.0,
+                    lower_limit_price=50000.0,
+                    current_volume=0,
+                    previous_volume=0,
+                    current_trading_value=0.0,
+                    price_diff=1000.0,
+                    price_diff_rate=1.4,
+                )
+
+        service = StockQuoteService(StringPriceMacdApiClient())
+
+        with patch("stock.service.stock_quote_service.calculate_ema_warmup_days") as warmup:
+            warmup.return_value = 3
+
+            service.get_macd(
+                market="J",
+                code="005930",
+                start_date="20240403",
+                end_date="20240404",
+                period="D",
+                adjusted_price=True,
+                ema_short_window=12,
+                ema_long_window=26,
+            )
+
+        warmup.assert_called_once_with(26, "D", max_seed_error=14000.0)
 
 
 if __name__ == "__main__":

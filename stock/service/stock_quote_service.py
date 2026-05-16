@@ -2,6 +2,7 @@ from stock.domain.adapter.api_client import IApiClient
 from stock.service.indicator.common import (
     resolve_indicator_date_range,
     calculate_ema_warmup_days,
+    calculate_price_ema_seed_error,
 )
 from stock.service.indicator.moving_average import (
     calculate_moving_average_values,
@@ -154,7 +155,11 @@ class StockQuoteService:
         if ema_short_window <= 0 or ema_long_window <= 0:
             raise ValueError("window must be positive")
 
-        ema_warmup_days = calculate_ema_warmup_days(ema_long_window, period)
+        stock_info = self.get_stock_info(market, code)
+        max_seed_error = calculate_price_ema_seed_error(stock_info.current_price)
+        ema_warmup_days = calculate_ema_warmup_days(
+            ema_long_window, period, max_seed_error=max_seed_error
+        )
         fetch_start_date, valid_end_date = resolve_indicator_date_range(
             start_date, end_date, period, ema_warmup_days
         )
