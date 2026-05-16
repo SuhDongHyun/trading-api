@@ -32,3 +32,12 @@ class Macd:
 
     date: str
     value: float
+
+
+@dataclass
+class MacdSignal:
+    """특정 날짜의 MACD 값과 단독 신호 판정."""
+
+    date: str
+    value: float
+    signal: str

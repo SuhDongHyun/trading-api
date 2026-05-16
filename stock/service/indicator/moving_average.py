@@ -3,7 +3,7 @@
 import numpy as np
 from itertools import accumulate
 
-from stock.domain.indicator import Macd, MovingAverage
+from stock.domain.indicator import Macd, MacdSignal, MovingAverage
 from stock.domain.price import DailyStockPrice
 
 
@@ -78,3 +78,46 @@ def calculate_macd_values(
         Macd(date=short.date, value=short.value - long.value)
         for short, long in zip(ema_short, ema_long)
     ]
+
+
+def calculate_macd_signals(
+    macd_values: list[Macd], ema_window: int, ema_warmup_days: int
+) -> list[MacdSignal]:
+    """MACD EMA 지표 값에 과매수·과매도 신호를 붙여 반환한다."""
+    ema_alpha = 2 / (ema_window + 1)
+
+    sorted_macd_values = sorted(macd_values, key=lambda macd: macd.date)
+    clipped_macd_signals = list(
+        accumulate(
+            (macd.value for macd in sorted_macd_values),
+            lambda signal, macd: macd * ema_alpha + signal * (1 - ema_alpha),
+        )
+    )[ema_warmup_days - 2 :]
+    clipped_macd_values = sorted_macd_values[ema_warmup_days - 2 :]
+
+    return [
+        MacdSignal(
+            date=curr_macd.date,
+            value=curr_signal,
+            signal=crossing_signal(
+                prev_macd.value, curr_macd.value, prev_signal, curr_signal
+            ),
+        )
+        for prev_macd, curr_macd, prev_signal, curr_signal in zip(
+            clipped_macd_values[:-1],
+            clipped_macd_values[1:],
+            clipped_macd_signals[:-1],
+            clipped_macd_signals[1:],
+        )
+    ]
+
+
+def crossing_signal(
+    prev_macd: float, curr_macd: float, prev_signal: float, curr_signal: float
+) -> str:
+    """MACD가 기준선을 상향/하향 돌파했는지에 따라 매수/매도 신호를 반환한다."""
+    if prev_macd < prev_signal and curr_macd > curr_signal:
+        return "buy"
+    if prev_macd > prev_signal and curr_macd < curr_signal:
+        return "sell"
+    return "neutral"
