@@ -14,6 +14,8 @@ EMA_WARMUP_TOLERANCE_BY_PERIOD = {
     "M": 0.00001,
     "Y": 0.000001,
 }
+MACD_PRICE_SEED_ERROR_RATIO = 0.2
+MIN_EMA_SEED_ERROR = 100.0
 
 
 def calculate_indicator_fetch_start_date(start_date, period, window):
@@ -30,6 +32,15 @@ def calculate_ema_warmup_days(
     alpha = 2 / (ema_window + 1)
     tolerance = EMA_WARMUP_TOLERANCE_BY_PERIOD.get(period, 0.0001)
     return math.ceil(math.log(tolerance / max_seed_error) / math.log(1 - alpha))
+
+
+def calculate_price_ema_seed_error(reference_price: float | str) -> float:
+    """가격 EMA warmup에 사용할 seed error 상한을 현재가 스케일로 계산한다."""
+
+    normalized_price = float(reference_price or 0.0)
+    return max(
+        MIN_EMA_SEED_ERROR, abs(normalized_price) * MACD_PRICE_SEED_ERROR_RATIO
+    )
 
 
 def resolve_indicator_date_range(
