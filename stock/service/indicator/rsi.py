@@ -37,7 +37,7 @@ def calculate_rsi_values(
 def calculate_rsi_signals(
     rsi_values: list[Rsi], ema_window: int, ema_warmup_days: int
 ) -> list[RsiSignal]:
-    """RSI 값에 과매수·과매도 신호를 붙여 반환한다."""
+    """RSI EMA 지표 값에 과매수·과매도 신호를 붙여 반환한다."""
 
     ema_alpha = 2 / (ema_window + 1)
 

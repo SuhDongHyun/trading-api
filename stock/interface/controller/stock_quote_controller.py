@@ -15,6 +15,8 @@ from stock.interface.schema.stock_quote import (
     RsiSignalResponse,
     MacdRequest,
     MacdResponse,
+    MacdSignalRequest,
+    MacdSignalResponse,
 )
 from stock.service.stock_quote_service import StockQuoteService
 
@@ -208,4 +210,36 @@ def get_macd(
             macd=macd.value,
         )
         for macd in macd_values
+    ]
+
+
+@router.post("/indicator/macd-signal", response_model=list[MacdSignalResponse])
+@inject
+def get_macd_signal(
+    request: MacdSignalRequest,
+    stock_quote_service: StockQuoteService = Depends(
+        Provide[Container.stock_quote_service]
+    ),
+):
+    """MACD 과매수·과매도 신호 요청을 처리한다."""
+
+    macd_signals = stock_quote_service.get_macd_signal(
+        market=request.market,
+        code=request.code,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        period=request.period,
+        adjusted_price=request.adjusted_price,
+        ema_short_window=request.ema_short_window,
+        ema_long_window=request.ema_long_window,
+        ema_window=request.ema_window,
+    )
+
+    return [
+        MacdSignalResponse(
+            date=macd_signal.date,
+            macd_ema=macd_signal.value,
+            signal=macd_signal.signal,
+        )
+        for macd_signal in macd_signals
     ]

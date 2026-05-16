@@ -172,7 +172,7 @@ class RsiSignalRequest(BaseModel):
 
 
 class RsiSignalResponse(BaseModel):
-    """특정 날짜의 RSI 값과 신호 응답."""
+    """특정 날짜의 RSI EMA 지표 값과 신호 응답."""
 
     date: str
     rsi_ema: float
@@ -214,3 +214,44 @@ class MacdResponse(BaseModel):
 
     date: str
     macd: float
+
+
+class MacdSignalRequest(BaseModel):
+    """MACD 신호 계산 요청 파라미터."""
+
+    market: str = Field(
+        default="J", description="시장 구분 코드. 국내 주식은 J를 사용합니다."
+    )
+    code: str = Field(
+        default="005930", description="종목 코드. 기본값은 삼성전자 005930입니다."
+    )
+    start_date: str = Field(
+        default="20260101",
+        description="조회 시작일입니다.",
+    )
+    end_date: str = Field(
+        default="20260107",
+        description="조회 종료일입니다.",
+    )
+    period: PeriodCode = Field(
+        default="D",
+        description="기간 구분 코드. D(일), W(주), M(월), Y(년) 중 하나입니다.",
+    )
+    adjusted_price: bool = Field(default=True, description="수정주가 반영 여부입니다.")
+    ema_short_window: int = Field(
+        default=12, ge=1, description="MACD 단기 EMA 계산 기간입니다."
+    )
+    ema_long_window: int = Field(
+        default=26, ge=1, description="MACD 장기 EMA 계산 기간입니다."
+    )
+    ema_window: int = Field(
+        default=9, ge=1, description="MACD signal EMA 계산 기간입니다."
+    )
+
+
+class MacdSignalResponse(BaseModel):
+    """특정 날짜의 MACD EMA 지표 값과 신호 응답."""
+
+    date: str
+    macd_ema: float
+    signal: str
