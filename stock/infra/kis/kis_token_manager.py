@@ -14,7 +14,7 @@ _TOKEN_LOCK = Lock()
 def _issue_access_token() -> tuple[str, float]:
     """한국투자증권 Open API 액세스 토큰을 발급하고 만료 시각을 반환한다."""
 
-    url = f"{settings.kis.base_url}oauth2/tokenP"
+    url = f"{settings.kis.base_url}/oauth2/tokenP"
     headers = {"content-type": "application/json"}
     body = {
         "grant_type": "client_credentials",

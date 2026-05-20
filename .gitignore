@@ -141,6 +141,7 @@ celerybeat.pid
 .vscode/
 .agents
 .codex/
+.gstack/
 env/
 venv/
 ENV/
