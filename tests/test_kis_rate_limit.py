@@ -15,10 +15,10 @@ class FakeResponse:
 class KISRateLimitTest(unittest.TestCase):
     """KIS REST API 호출 제한 적용을 검증한다."""
 
-    def test_kis_rate_limiter_uses_twenty_calls_per_second(self):
-        """KIS API limiter는 초당 20건 제한을 사용한다."""
+    def test_kis_rate_limiter_uses_ten_calls_per_second(self):
+        """KIS API limiter는 초당 10건 제한을 사용한다."""
 
-        self.assertEqual(kis_rate_limiter.KIS_API_CALLS_PER_SECOND, 20)
+        self.assertEqual(kis_rate_limiter.KIS_API_CALLS_PER_SECOND, 10)
 
     @patch.object(kis_rate_limiter, "_limiter")
     def test_kis_rate_limiter_blocks_until_slot_is_available(self, limiter):
