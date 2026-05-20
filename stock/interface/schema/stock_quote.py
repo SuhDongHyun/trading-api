@@ -21,6 +21,7 @@ class StockInfoResponse(BaseModel):
 
     market_name: str
     code: str
+    name: str
     industry: str
     per: float
     pbr: float

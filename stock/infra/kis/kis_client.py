@@ -54,21 +54,32 @@ class KISClient(IApiClient):
 
     def get_stock_info(self, market: str, code: str) -> StockInfo:
         """KIS 현재가 조회 응답을 Stock 도메인 객체로 변환한다."""
-        params = {
-            "FID_COND_MRKT_DIV_CODE": market,
-            "FID_INPUT_ISCD": code,
-        }
-        path1 = "/uapi/domestic-stock/v1/quotations/inquire-price"
-        path2 = "/uapi/domestic-stock/v1/quotations/inquire-price-2"
+
+        def get_output(path, params, tr_id):
+            return api_get(path=path, params=params, tr_id=tr_id).json()["output"]
 
         stock_info = (
-            api_get(path=path1, params=params, tr_id="FHKST01010100").json()["output"]
-            | api_get(path=path2, params=params, tr_id="FHPST01010000").json()["output"]
+            get_output(
+                "/uapi/domestic-stock/v1/quotations/search-stock-info",
+                {"PRDT_TYPE_CD": "300", "PDNO": code},
+                "CTPF1002R",
+            )
+            | get_output(
+                "/uapi/domestic-stock/v1/quotations/inquire-price",
+                {"FID_COND_MRKT_DIV_CODE": market, "FID_INPUT_ISCD": code},
+                "FHKST01010100",
+            )
+            | get_output(
+                "/uapi/domestic-stock/v1/quotations/inquire-price-2",
+                {"FID_COND_MRKT_DIV_CODE": market, "FID_INPUT_ISCD": code},
+                "FHPST01010000",
+            )
         )
 
         return StockInfo(
             market_name=stock_info["rprs_mrkt_kor_name"],
             code=stock_info["bstp_cls_code"],
+            name=stock_info["prdt_abrv_name"],
             industry=stock_info["bstp_kor_isnm"],
             per=stock_info["per"],
             pbr=stock_info["pbr"],
