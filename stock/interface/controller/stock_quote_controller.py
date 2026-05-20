@@ -38,6 +38,7 @@ def get_stock_info(
     return StockInfoResponse(
         market_name=stock_info.market_name,
         code=stock_info.code,
+        name=stock_info.name,
         industry=stock_info.industry,
         per=stock_info.per,
         pbr=stock_info.pbr,

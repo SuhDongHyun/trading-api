@@ -332,6 +332,7 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
                 return StockInfo(
                     market_name="KOSPI",
                     code=code,
+                    name="삼성전자",
                     industry="반도체",
                     per=0.0,
                     pbr=0.0,
@@ -379,6 +380,7 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
                 return StockInfo(
                     market_name="KOSPI",
                     code=code,
+                    name="삼성전자",
                     industry="반도체",
                     per=0.0,
                     pbr=0.0,
