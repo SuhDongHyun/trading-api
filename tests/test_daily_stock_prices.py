@@ -132,6 +132,64 @@ class DailyStockPriceFeatureTest(unittest.TestCase):
         self.assertEqual(result[0].close_price, 70500.0)
         self.assertEqual(result[0].accumulated_volume, 1234567)
 
+    @patch("stock.infra.kis.kis_client.api_get")
+    def test_kis_client_uses_period_end_date_for_monthly_chart_query(self, api_get):
+        """월봉 조회는 해당 월의 마지막 거래일로 요청한다."""
+
+        api_get.return_value = FakeResponse()
+        client = KISClient()
+
+        client.get_daily_stock_prices(
+            market="J",
+            code="005930",
+            start_date="20250801",
+            end_date="20250831",
+            period="M",
+            adjusted_price=True,
+        )
+
+        api_get.assert_called_once_with(
+            path="/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice",
+            params={
+                "FID_COND_MRKT_DIV_CODE": "J",
+                "FID_INPUT_ISCD": "005930",
+                "FID_INPUT_DATE_1": "20250829",
+                "FID_INPUT_DATE_2": "20250829",
+                "FID_PERIOD_DIV_CODE": "M",
+                "FID_ORG_ADJ_PRC": "0",
+            },
+            tr_id="FHKST03010100",
+        )
+
+    @patch("stock.infra.kis.kis_client.api_get")
+    def test_kis_client_uses_period_end_date_for_yearly_chart_query(self, api_get):
+        """년봉 조회는 해당 연도의 마지막 거래일로 요청한다."""
+
+        api_get.return_value = FakeResponse()
+        client = KISClient()
+
+        client.get_daily_stock_prices(
+            market="J",
+            code="005930",
+            start_date="20250102",
+            end_date="20251231",
+            period="Y",
+            adjusted_price=True,
+        )
+
+        api_get.assert_called_once_with(
+            path="/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice",
+            params={
+                "FID_COND_MRKT_DIV_CODE": "J",
+                "FID_INPUT_ISCD": "005930",
+                "FID_INPUT_DATE_1": "20251230",
+                "FID_INPUT_DATE_2": "20251230",
+                "FID_PERIOD_DIV_CODE": "Y",
+                "FID_ORG_ADJ_PRC": "0",
+            },
+            tr_id="FHKST03010100",
+        )
+
     def test_controller_returns_daily_price_response_schema(self):
         """Controller가 일봉 도메인 결과를 응답 스키마로 변환하는지 검증한다."""
 

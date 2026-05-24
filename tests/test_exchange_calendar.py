@@ -20,10 +20,10 @@ def test_exchange_calendar_is_created_once_under_concurrent_first_access(monkeyp
 
     created_calendars = []
 
-    def fake_get_calendar(name):
+    def fake_get_calendar(name, start=None):
         time.sleep(0.05)
         calendar = object()
-        created_calendars.append((name, calendar))
+        created_calendars.append((name, start, calendar))
         return calendar
 
     exchange_calendar.clear_exchange_calendar_cache()
@@ -44,7 +44,8 @@ def test_exchange_calendar_is_created_once_under_concurrent_first_access(monkeyp
 
     assert len(created_calendars) == 1
     assert len(results) == 5
-    assert all(result is created_calendars[0][1] for result in results)
+    assert created_calendars[0][1] == exchange_calendar.DEFAULT_START_DATE
+    assert all(result is created_calendars[0][2] for result in results)
 
 
 def test_startup_warms_up_krx_calendar(monkeypatch):

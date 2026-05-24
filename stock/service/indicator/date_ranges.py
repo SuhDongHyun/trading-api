@@ -1,6 +1,7 @@
 """지표 계산에 필요한 기간별 KRX 거래일 보정 helper."""
 
 import pandas as pd
+from calendar import monthrange
 from datetime import datetime, timedelta
 
 from common.exchange_calendar import get_krx_calendar
@@ -52,6 +53,18 @@ def _year_start(date):
     """기준일이 속한 연도의 1월 1일을 반환한다."""
 
     return date.replace(month=1, day=1)
+
+
+def _month_end(date):
+    """기준일이 속한 월의 마지막 날짜를 반환한다."""
+
+    return date.replace(day=monthrange(date.year, date.month)[1])
+
+
+def _year_end(date):
+    """기준일이 속한 연도의 마지막 날짜를 반환한다."""
+
+    return date.replace(month=12, day=31)
 
 
 PERIOD_CALENDAR_START_CALCULATORS = {
@@ -118,8 +131,8 @@ PERIOD_START_NORMALIZERS = {
 PERIOD_END_NORMALIZERS = {
     "D": _last_session_on_or_before,
     "W": PERIOD_START_NORMALIZERS["W"],
-    "M": PERIOD_START_NORMALIZERS["M"],
-    "Y": PERIOD_START_NORMALIZERS["Y"],
+    "M": _month_end,
+    "Y": _year_end,
 }
 
 

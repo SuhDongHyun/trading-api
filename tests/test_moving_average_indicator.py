@@ -7,6 +7,7 @@ from stock.interface.controller.stock_quote_controller import get_moving_average
 from stock.interface.schema.stock_quote import MovingAverageRequest
 from stock.service.indicator.common import (
     calculate_indicator_fetch_start_date,
+    normalize_period_end,
     normalize_period_start,
 )
 from stock.service.stock_quote_service import StockQuoteService
@@ -139,6 +140,8 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
         self.assertEqual(normalize_period_start("20260101", "W"), "20251229")
         self.assertEqual(normalize_period_start("20250315", "M"), "20250304")
         self.assertEqual(normalize_period_start("20260115", "Y"), "20260102")
+        self.assertEqual(normalize_period_end("20260415", "M"), "20260430")
+        self.assertEqual(normalize_period_end("20260415", "Y"), "20261231")
 
         self.assertEqual(
             calculate_indicator_fetch_start_date("20260401", "D", 14),
@@ -234,7 +237,7 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
 
         self.assertEqual(
             api_client.calls,
-            [("J", "005930", "20260202", "20260504", "M", True)],
+            [("J", "005930", "20260202", "20260531", "M", True)],
         )
         self.assertEqual(
             [value.date for value in result],
@@ -275,7 +278,7 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
 
         self.assertEqual(
             api_client.calls,
-            [("J", "005930", "20240102", "20270104", "Y", True)],
+            [("J", "005930", "20240102", "20271231", "Y", True)],
         )
         self.assertEqual(
             [value.date for value in result],

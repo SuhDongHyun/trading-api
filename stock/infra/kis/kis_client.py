@@ -110,7 +110,7 @@ class KISClient(IApiClient):
     ) -> list[DailyStockPrice]:
         """KIS 일봉 차트 응답을 요약과 가격 목록으로 변환한다."""
 
-        date_ranges = split_date_range(start_date, end_date)
+        date_ranges = split_date_range(start_date, end_date, period)
         bodies = []
 
         for _start_date, _end_date in date_ranges:
