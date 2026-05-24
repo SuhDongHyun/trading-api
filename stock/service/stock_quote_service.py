@@ -1,6 +1,7 @@
 from stock.domain.adapter.api_client import IApiClient
 from stock.service.indicator.common import (
-    resolve_indicator_date_range,
+    resolve_base_indicator_date_range,
+    resolve_windowed_indicator_date_range,
     calculate_ema_warmup_days,
     calculate_price_ema_seed_error,
 )
@@ -39,11 +40,15 @@ class StockQuoteService:
     ):
         """지정 구간의 일봉 시세를 외부 API에서 조회한다."""
 
+        valid_start_date, valid_end_date = resolve_base_indicator_date_range(
+            start_date, end_date, period
+        )
+
         return self.api_client.get_daily_stock_prices(
             market=market,
             code=code,
-            start_date=start_date,
-            end_date=end_date,
+            start_date=valid_start_date,
+            end_date=valid_end_date,
             period=period,
             adjusted_price=adjusted_price,
         )
@@ -63,7 +68,7 @@ class StockQuoteService:
         if window <= 0:
             raise ValueError("window must be positive")
 
-        fetch_start_date, valid_end_date = resolve_indicator_date_range(
+        fetch_start_date, valid_end_date = resolve_windowed_indicator_date_range(
             start_date, end_date, period, window
         )
 
@@ -91,9 +96,9 @@ class StockQuoteService:
         """요청 구간의 RSI 지표 시계열을 계산한다."""
 
         if rsi_window <= 0:
-            raise ValueError("window must be positive")
+            raise ValueError("rsi_window must be positive")
 
-        fetch_start_date, valid_end_date = resolve_indicator_date_range(
+        fetch_start_date, valid_end_date = resolve_windowed_indicator_date_range(
             start_date, end_date, period, rsi_window, extra_periods=1
         )
 
@@ -121,9 +126,12 @@ class StockQuoteService:
     ):
         """RSI 값에 과매수·과매도 신호를 붙여 반환한다."""
 
+        if rsi_window <= 0 or ema_window <= 0:
+            raise ValueError("rsi_window and ema_window must be positive")
+
         ema_warmup_days = calculate_ema_warmup_days(ema_window, period)
 
-        fetch_start_date, valid_end_date = resolve_indicator_date_range(
+        fetch_start_date, valid_end_date = resolve_windowed_indicator_date_range(
             start_date, end_date, period, ema_warmup_days
         )
 
@@ -153,14 +161,14 @@ class StockQuoteService:
         """요청 구간의 MACD 지표 시계열을 계산한다."""
 
         if ema_short_window <= 0 or ema_long_window <= 0:
-            raise ValueError("window must be positive")
+            raise ValueError("ema_short_window and ema_long_window must be positive")
 
         stock_info = self.get_stock_info(market, code)
         max_seed_error = calculate_price_ema_seed_error(stock_info.current_price)
         ema_warmup_days = calculate_ema_warmup_days(
             ema_long_window, period, max_seed_error=max_seed_error
         )
-        fetch_start_date, valid_end_date = resolve_indicator_date_range(
+        fetch_start_date, valid_end_date = resolve_windowed_indicator_date_range(
             start_date, end_date, period, ema_warmup_days
         )
 
@@ -194,12 +202,14 @@ class StockQuoteService:
     ):
         """MACD 값에 시그널선과 매매 신호를 붙여 반환한다."""
 
-        if ema_window <= 0:
-            raise ValueError("window must be positive")
+        if ema_short_window <= 0 or ema_long_window <= 0 or ema_window <= 0:
+            raise ValueError(
+                "ema_short_window, ema_long_window, and ema_window must be positive"
+            )
 
         ema_warmup_days = calculate_ema_warmup_days(ema_window, period)
 
-        fetch_start_date, valid_end_date = resolve_indicator_date_range(
+        fetch_start_date, valid_end_date = resolve_windowed_indicator_date_range(
             start_date, end_date, period, ema_warmup_days
         )
 

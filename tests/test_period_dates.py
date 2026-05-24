@@ -1,6 +1,6 @@
 import unittest
 
-from stock.service.indicator.period_dates import (
+from stock.service.indicator.date_ranges import (
     calculate_period_fetch_start_date,
     normalize_period_end,
     normalize_period_start,
@@ -18,6 +18,8 @@ class PeriodDatesTest(unittest.TestCase):
         self.assertEqual(normalize_period_start("20260101", "W"), "20251229")
         self.assertEqual(normalize_period_start("20250315", "M"), "20250304")
         self.assertEqual(normalize_period_start("20260115", "Y"), "20260102")
+        self.assertEqual(normalize_period_end("20260401", "M"), "20260430")
+        self.assertEqual(normalize_period_end("20250101", "Y"), "20251231")
 
     def test_calculates_fetch_start_from_period_first_sessions(self):
         """W/M/Y fetch start도 첫 KRX 거래일 기준으로 계산한다."""

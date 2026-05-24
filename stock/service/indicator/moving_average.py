@@ -84,6 +84,10 @@ def calculate_macd_signals(
     macd_values: list[Macd], ema_window: int, ema_warmup_days: int
 ) -> list[MacdSignal]:
     """MACD EMA 지표 값에 과매수·과매도 신호를 붙여 반환한다."""
+
+    if len(macd_values) < ema_warmup_days:
+        raise ValueError("MACD 데이터 개수가 ema_warmup_days 크기보다 작습니다.")
+
     ema_alpha = 2 / (ema_window + 1)
 
     sorted_macd_values = sorted(macd_values, key=lambda macd: macd.date)

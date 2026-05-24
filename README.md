@@ -16,15 +16,8 @@ FastAPI Controller  ->  Service  ->  KIS Adapter  ->  Korea Investment Open API
 - 계좌 보유 종목과 계좌 요약 조회
 - 국내 주식 현재가 조회
 - 일/주/월/년 단위 가격 데이터 조회
-- 이동평균, RSI, RSI signal, MACD 계산
+- 이동평균, RSI, RSI signal, MACD, MACD signal 계산
 - KIS 인증 토큰 캐싱과 API 호출 속도 제한
-
-## 지표 계산
-
-RSI signal은 RSI 값 범위가 0~100인 점을 기준으로 EMA warmup을 계산합니다.
-MACD와 MACD signal은 종가 기반 EMA를 사용하므로, 현재가 조회값을 기준 가격으로
-삼아 종목 가격대에 맞는 EMA warmup 기간을 계산합니다. 이 과정에서 MACD 계열
-조회는 현재가 API를 한 번 호출한 뒤 필요한 과거 가격 데이터를 조회합니다.
 
 ## 실행
 

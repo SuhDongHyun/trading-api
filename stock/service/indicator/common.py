@@ -2,7 +2,7 @@
 
 import math
 
-from stock.service.indicator.period_dates import (
+from stock.service.indicator.date_ranges import (
     calculate_period_fetch_start_date,
     normalize_period_end,
     normalize_period_start,
@@ -38,12 +38,21 @@ def calculate_price_ema_seed_error(reference_price: float | str) -> float:
     """가격 EMA warmup에 사용할 seed error 상한을 현재가 스케일로 계산한다."""
 
     normalized_price = float(reference_price or 0.0)
-    return max(
-        MIN_EMA_SEED_ERROR, abs(normalized_price) * MACD_PRICE_SEED_ERROR_RATIO
-    )
+    return max(MIN_EMA_SEED_ERROR, abs(normalized_price) * MACD_PRICE_SEED_ERROR_RATIO)
 
 
-def resolve_indicator_date_range(
+def resolve_base_indicator_date_range(
+    start_date: str, end_date: str, period: str
+) -> tuple[str, str]:
+    """기본 지표 계산에 필요한 날짜 범위를 정규화하고 계산한다."""
+
+    valid_start_date = normalize_period_start(start_date, period)
+    valid_end_date = normalize_period_end(end_date, period)
+
+    return valid_start_date, valid_end_date
+
+
+def resolve_windowed_indicator_date_range(
     start_date: str, end_date: str, period: str, window: int, extra_periods: int = 0
 ) -> tuple[str, str]:
     """지표 계산에 필요한 날짜 범위를 정규화하고 계산한다."""

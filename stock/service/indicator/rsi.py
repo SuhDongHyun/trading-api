@@ -39,6 +39,9 @@ def calculate_rsi_signals(
 ) -> list[RsiSignal]:
     """RSI EMA 지표 값에 과매수·과매도 신호를 붙여 반환한다."""
 
+    if len(rsi_values) < ema_warmup_days:
+        raise ValueError("RSI 값 개수가 ema_warmup_days 크기보다 작습니다.")
+
     ema_alpha = 2 / (ema_window + 1)
 
     sorted_rsi_values = sorted(rsi_values, key=lambda rsi: rsi.date)
