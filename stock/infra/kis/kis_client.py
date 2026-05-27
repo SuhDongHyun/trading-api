@@ -1,8 +1,10 @@
 from itertools import chain
+from datetime import datetime
 
 from config import settings
 
 from stock.domain.account import Position, Account, AccountSummary
+from stock.domain.news import News
 from stock.domain.adapter.api_client import IApiClient
 from stock.domain.price import DailyStockPrice
 from stock.domain.stock import StockInfo
@@ -142,4 +144,73 @@ class KISClient(IApiClient):
                 change_flag=price["mod_yn"],
             )
             for price in prices
+        ]
+
+    def _get_news(
+        self,
+        code: str,
+        search_date: str,
+        search_time: str,
+    ) -> list[News]:
+        """KIS 뉴스 검색 응답을 뉴스 목록으로 변환한다."""
+
+        path = "/uapi/domestic-stock/v1/quotations/news-title"
+        params = {
+            "FID_NEWS_OFER_ENTP_CODE": "",
+            "FID_COND_MRKT_CLS_CODE": "",
+            "FID_INPUT_ISCD": code,
+            "FID_TITL_CNTT": "",
+            "FID_INPUT_DATE_1": search_date,
+            "FID_INPUT_HOUR_1": search_time,
+            "FID_RANK_SORT_CLS_CODE": "",
+            "FID_INPUT_SRNO": "",
+        }
+
+        resp = api_get(path=path, params=params, tr_id="FHKST01011800")
+        news_list = resp.json()["output"]
+        code_cols = ["iscd1", "iscd2", "iscd3", "iscd4", "iscd5"]
+        target_news = [
+            news
+            for news in news_list
+            if any(news.get(col) == code for col in code_cols)
+        ]
+        return [
+            News(
+                key=news["cntt_usiq_srno"],
+                title=news["hts_pbnt_titl_cntt"],
+                source=news["dorg"],
+                published_at=datetime.strptime(
+                    news["data_dt"] + news["data_tm"], "%Y%m%d%H%M%S"
+                ),
+            )
+            for news in target_news
+        ]
+
+    def get_total_news(
+        self,
+        code: str,
+        search_date: str,
+        search_time: str,
+    ) -> list[News]:
+        news_by_key: dict[str, News] = {}
+
+        while True:
+            news_list = self._get_news(code, search_date, search_time)
+            before_count = len(news_by_key)
+
+            for news in news_list:
+                if news.key not in news_by_key:
+                    news_by_key[news.key] = news
+
+            if len(news_list) < 40 or len(news_by_key) == before_count:
+                break
+
+            last_published_at = news_list[-1].published_at
+            search_date = last_published_at.strftime("%Y%m%d")
+            search_time = last_published_at.strftime("%H%M%S")
+
+        return [
+            news
+            for news in list(news_by_key.values())
+            if news.published_at.strftime("%Y%m%d") == search_date
         ]
