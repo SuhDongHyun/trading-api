@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 
-from stock.domain.news import News
 from stock.infra.kis.kis_client import KISClient
 
 
@@ -9,18 +8,24 @@ class FakeNewsClient(KISClient):
         self.pages = pages
         self.calls = []
 
-    def _get_news(self, code: str, search_date: str, search_time: str) -> list[News]:
+    def _get_news(self, code: str, search_date: str, search_time: str) -> list[dict]:
         self.calls.append((code, search_date, search_time))
         return self.pages[len(self.calls) - 1]
 
 
-def make_news(key: str, published_at: datetime) -> News:
-    return News(
-        key=key,
-        title=f"title-{key}",
-        source="source",
-        published_at=published_at,
-    )
+def make_news(key: str, published_at: datetime) -> dict:
+    return {
+        "cntt_usiq_srno": key,
+        "hts_pbnt_titl_cntt": f"title-{key}",
+        "dorg": "source",
+        "data_dt": published_at.strftime("%Y%m%d"),
+        "data_tm": published_at.strftime("%H%M%S"),
+        "iscd1": "005930",
+        "iscd2": "",
+        "iscd3": "",
+        "iscd4": "",
+        "iscd5": "",
+    }
 
 
 def test_get_total_news_fetches_until_page_has_less_than_forty_and_deduplicates():
