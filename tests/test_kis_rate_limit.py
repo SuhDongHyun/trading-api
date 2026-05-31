@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import patch
+from pytest import approx
 
 from stock.infra.kis.kis_http_client import api_get, api_post
 from stock.infra.kis import kis_rate_limiter
@@ -7,6 +8,8 @@ from stock.infra.kis import kis_rate_limiter
 
 class FakeResponse:
     """HTTP 응답 객체의 raise_for_status 동작만 흉내낸다."""
+
+    status_code = 200
 
     def raise_for_status(self):
         """테스트용 응답은 항상 성공으로 처리한다."""
@@ -30,6 +33,22 @@ class KISRateLimitTest(unittest.TestCase):
             kis_rate_limiter.KIS_API_RATE_LIMIT_KEY,
             blocking=True,
         )
+
+    @patch.object(kis_rate_limiter, "sleep")
+    @patch.object(kis_rate_limiter, "monotonic")
+    @patch.object(kis_rate_limiter, "_limiter")
+    def test_kis_rate_limiter_keeps_minimum_interval_between_requests(
+        self, limiter, monotonic, sleep
+    ):
+        """연속 호출 사이에는 KIS 권장 최소 간격 150ms를 둔다."""
+
+        kis_rate_limiter._last_request_at = None
+        monotonic.side_effect = [100.00, 100.05, 100.15]
+
+        kis_rate_limiter.acquire_kis_api_slot()
+        kis_rate_limiter.acquire_kis_api_slot()
+
+        sleep.assert_called_once_with(approx(0.10))
 
     @patch("stock.infra.kis.kis_http_client.acquire_kis_api_slot", create=True)
     @patch("stock.infra.kis.kis_http_client.build_header")
