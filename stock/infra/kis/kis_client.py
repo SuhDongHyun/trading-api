@@ -1,15 +1,18 @@
+import logging
 from itertools import chain
 from datetime import datetime
 
 from config import settings
 
 from stock.domain.account import Position, Account, AccountSummary
+from stock.domain.stock import StockInfo
+from stock.domain.price import DailyStockPrice
 from stock.domain.news import News
 from stock.domain.adapter.api_client import IApiClient
-from stock.domain.price import DailyStockPrice
-from stock.domain.stock import StockInfo
 from stock.infra.kis.kis_http_client import api_get
 from stock.infra.kis.kis_util import to_float, to_int, split_date_range
+
+logger = logging.getLogger(__name__)
 
 
 class KISClient(IApiClient):
@@ -166,6 +169,13 @@ class KISClient(IApiClient):
             "FID_INPUT_SRNO": "",
         }
 
+        logger.info(
+            "Requesting KIS news code=%s search_date=%s search_time=%s params=%s",
+            code,
+            search_date,
+            search_time,
+            params,
+        )
         resp = api_get(path=path, params=params, tr_id="FHKST01011800")
         news_list = resp.json()["output"]
         return news_list
@@ -178,7 +188,7 @@ class KISClient(IApiClient):
     ) -> list[News]:
         """KIS 뉴스 검색 API의 페이지 제한에 맞춰 검색 시각을 갱신하며, 지정 날짜의 지정 시간까지 발행된 종목 관련 뉴스를 모두 조회한다."""
         news_by_key: dict[str, News] = {}
-        initial_search_date = search_date
+        search_day = datetime.strptime(search_date, "%Y%m%d").date()
 
         while True:
             news_list = self._get_news(code, search_date, search_time)
@@ -206,11 +216,13 @@ class KISClient(IApiClient):
                 break
 
             last_published_at = target_news[-1].published_at
-            search_date = last_published_at.strftime("%Y%m%d")
+            if last_published_at.date() < search_day:
+                break
+
             search_time = last_published_at.strftime("%H%M%S")
 
         return [
             news
             for news in list(news_by_key.values())
-            if news.published_at.strftime("%Y%m%d") == initial_search_date
+            if news.published_at.strftime("%Y%m%d") == search_date
         ]
