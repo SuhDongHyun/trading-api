@@ -12,6 +12,9 @@ from stock.interface.controller.stock_news_controller import (
 from stock.interface.controller.stock_quote_controller import (
     router as stock_quote_router,
 )
+from stock.interface.controller.market_indicator_controller import (
+    router as market_indicator_router,
+)
 
 
 @asynccontextmanager
@@ -24,6 +27,7 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(account_router)
 app.include_router(stock_news_router)
 app.include_router(stock_quote_router)
+app.include_router(market_indicator_router)
 
 
 def warm_up_krx_calendar():
