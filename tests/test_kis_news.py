@@ -13,14 +13,14 @@ class FakeNewsClient(KISClient):
         return self.pages[len(self.calls) - 1]
 
 
-def make_news(key: str, published_at: datetime) -> dict:
+def make_news(key: str, published_at: datetime, code: str = "005930") -> dict:
     return {
         "cntt_usiq_srno": key,
         "hts_pbnt_titl_cntt": f"title-{key}",
         "dorg": "source",
         "data_dt": published_at.strftime("%Y%m%d"),
         "data_tm": published_at.strftime("%H%M%S"),
-        "iscd1": "005930",
+        "iscd1": code,
         "iscd2": "",
         "iscd3": "",
         "iscd4": "",
@@ -65,4 +65,35 @@ def test_get_total_news_returns_only_news_from_initial_search_date():
 
     result = client.get_total_news("005930", "20260527", "004000")
 
+    assert [news.key for news in result] == [str(index) for index in range(40)]
+
+
+def test_get_total_news_stops_after_crossing_initial_search_date():
+    first_page = [
+        make_news(
+            str(index),
+            datetime(2026, 5, 31, 18, 0, 0) - timedelta(minutes=index),
+            code="000660",
+        )
+        for index in range(40)
+    ]
+    second_page = [
+        first_page[-1],
+        *[
+            make_news(
+                str(index),
+                datetime(2026, 5, 29, 18, 0, 0) - timedelta(minutes=index),
+                code="000660",
+            )
+            for index in range(40, 79)
+        ],
+    ]
+    client = FakeNewsClient([first_page, second_page, []])
+
+    result = client.get_total_news("000660", "20260531", "")
+
+    assert client.calls == [
+        ("000660", "20260531", ""),
+        ("000660", "20260531", "172100"),
+    ]
     assert [news.key for news in result] == [str(index) for index in range(40)]
