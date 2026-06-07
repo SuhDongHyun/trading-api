@@ -1,6 +1,6 @@
 # trading-api
 
-한국투자증권(KIS) Open API를 FastAPI로 감싼 국내 주식 조회 API입니다. 계좌 요약, 현재가, 일봉 데이터와 이동평균/RSI/MACD 같은 기술적 지표를 제공합니다.
+한국투자증권(KIS) Open API를 FastAPI로 감싼 국내 주식 조회 API입니다. 계좌 요약, 현재가, 일봉 데이터와 이동평균/RSI/MACD 같은 기술적 지표, 시장 지표를 제공합니다.
 
 ```text
 Client
@@ -17,6 +17,7 @@ FastAPI Controller  ->  Service  ->  KIS Adapter  ->  Korea Investment Open API
 - 국내 주식 현재가 조회
 - 일/주/월/년 단위 가격 데이터 조회
 - 이동평균, RSI, RSI signal, MACD, MACD signal 계산
+- 공포탐욕지수, VIX, USD/KRW 환율, 한국/미국 국채 수익률 조회
 - KIS 인증 토큰 캐싱과 API 호출 속도 제한
 
 ## 실행
@@ -88,6 +89,20 @@ curl -X POST http://localhost:9999/stock_quote/indicator/rsi \
   -d '{"market":"J","code":"005930","start_date":"20260101","end_date":"20260131","period":"D","rsi_window":14}'
 ```
 
+### 시장 지표 조회
+
+```bash
+curl -X POST http://localhost:9999/market-indicator/usd-krw-exchange-rate \
+  -H "Content-Type: application/json" \
+  -d '{"start_date":"20260101","end_date":"20260107","period":"D"}'
+```
+
+```bash
+curl -X POST http://localhost:9999/market-indicator/treasury-yield/korea-10y \
+  -H "Content-Type: application/json" \
+  -d '{"start_date":"20260101","end_date":"20260107"}'
+```
+
 ## 엔드포인트
 
 | Method | Path | 설명 |
@@ -100,6 +115,15 @@ curl -X POST http://localhost:9999/stock_quote/indicator/rsi \
 | `POST` | `/stock_quote/indicator/rsi-signal` | RSI signal 조회 |
 | `POST` | `/stock_quote/indicator/macd` | MACD 조회 |
 | `POST` | `/stock_quote/indicator/macd-signal` | MACD signal 조회 |
+| `GET` | `/market-indicator/fear-and-greed` | 공포탐욕지수 조회 |
+| `POST` | `/market-indicator/vix` | VIX 조회 |
+| `POST` | `/market-indicator/usd-krw-exchange-rate` | USD/KRW 환율 조회 |
+| `POST` | `/market-indicator/treasury-yield/korea-1y` | 한국 1년 만기 국채 수익률 조회 |
+| `POST` | `/market-indicator/treasury-yield/korea-3y` | 한국 3년 만기 국채 수익률 조회 |
+| `POST` | `/market-indicator/treasury-yield/korea-5y` | 한국 5년 만기 국채 수익률 조회 |
+| `POST` | `/market-indicator/treasury-yield/korea-10y` | 한국 10년 만기 국채 수익률 조회 |
+| `POST` | `/market-indicator/treasury-yield/us-1y` | 미국 1년 만기 국채 수익률 조회 |
+| `POST` | `/market-indicator/treasury-yield/us-10y` | 미국 10년 만기 국채 수익률 조회 |
 
 ## 테스트
 
