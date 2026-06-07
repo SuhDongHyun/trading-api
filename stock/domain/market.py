@@ -17,14 +17,3 @@ class VIXIndex:
 
     date: str
     value: float
-
-
-@dataclass
-class MarketIndicatorPrice:
-    """시장 지표 가격 도메인 모델."""
-
-    date: str
-    open_price: float
-    high_price: float
-    low_price: float
-    close_price: float

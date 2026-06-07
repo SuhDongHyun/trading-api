@@ -8,7 +8,6 @@ from stock.domain.account import Position, Account, AccountSummary
 from stock.domain.stock import StockInfo
 from stock.domain.price import DailyStockPrice
 from stock.domain.news import News
-from stock.domain.market import MarketIndicatorPrice
 from stock.domain.adapter.api_client import IApiClient
 from stock.infra.kis.kis_http_client import api_get
 from stock.infra.kis.kis_util import to_float, to_int, split_date_range
@@ -226,42 +225,4 @@ class KISClient(IApiClient):
             news
             for news in list(news_by_key.values())
             if news.published_at.strftime("%Y%m%d") == search_date
-        ]
-
-    def get_overseas_market_indicator_prices(
-        self,
-        market: str,
-        code: str,
-        start_date: str,
-        end_date: str,
-        period: str,
-    ):
-        """KIS 지표 차트 응답을 요약과 가격 목록으로 변환한다."""
-
-        date_ranges = split_date_range(start_date, end_date, period)
-        bodies = []
-
-        for _start_date, _end_date in date_ranges:
-            path = "/uapi/overseas-price/v1/quotations/inquire-daily-chartprice"
-            params = {
-                "FID_COND_MRKT_DIV_CODE": market,
-                "FID_INPUT_ISCD": code,
-                "FID_INPUT_DATE_1": _start_date,
-                "FID_INPUT_DATE_2": _end_date,
-                "FID_PERIOD_DIV_CODE": period,
-            }
-            resp = api_get(path=path, params=params, tr_id="FHKST03030100")
-            bodies.append(resp.json())
-
-        prices = list(chain.from_iterable(body["output2"][::-1] for body in bodies))
-
-        return [
-            MarketIndicatorPrice(
-                date=price["stck_bsop_date"],
-                open_price=to_float(price["ovrs_nmix_oprc"]),
-                high_price=to_float(price["ovrs_nmix_hgpr"]),
-                low_price=to_float(price["ovrs_nmix_lwpr"]),
-                close_price=to_float(price["ovrs_nmix_prpr"]),
-            )
-            for price in prices
         ]
