@@ -21,5 +21,5 @@ class Container(containers.DeclarativeContainer):
     stock_news_service = providers.Factory(StockNewsService, api_client=kis_client)
     stock_quote_service = providers.Factory(StockQuoteService, api_client=kis_client)
     market_indicator_service = providers.Factory(
-        MarketIndicatorService, market_client=fred_client
+        MarketIndicatorService, market_client=fred_client, api_client=kis_client
     )
