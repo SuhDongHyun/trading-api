@@ -137,6 +137,7 @@ celerybeat.pid
 # Environments
 .env
 .envrc
+AGENTS.md
 .venv
 .vscode/
 .agents
