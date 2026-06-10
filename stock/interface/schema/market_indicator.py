@@ -78,3 +78,26 @@ class TreasuryYieldResponse(BaseModel):
 
     date: str
     yield_rate: float
+
+
+class SP500IndexRequest(BaseModel):
+    """S&P 500 지수 조회 요청 모델."""
+
+    start_date: str = Field(
+        default="20260101",
+        description="조회 시작일입니다.",
+    )
+    end_date: str = Field(
+        default="20260107",
+        description="조회 종료일입니다.",
+    )
+
+
+class SP500IndexResponse(BaseModel):
+    """S&P 500 지수 응답 모델."""
+
+    date: str
+    open_price: float
+    high_price: float
+    low_price: float
+    close_price: float

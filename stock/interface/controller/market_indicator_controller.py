@@ -11,6 +11,8 @@ from stock.interface.schema.market_indicator import (
     UsdKrwExchangeRateResponse,
     TreasuryYieldRequest,
     TreasuryYieldResponse,
+    SP500IndexRequest,
+    SP500IndexResponse,
 )
 
 router = APIRouter(prefix="/market-indicator", tags=["market-indicator"])
@@ -218,4 +220,30 @@ def get_us_10y_treasury_yield(
             yield_rate=treasury_yield.close_price,
         )
         for treasury_yield in treasury_yield_list
+    ]
+
+
+@router.post("/sp500-index", response_model=list[SP500IndexResponse])
+@inject
+def get_sp500_index(
+    request: SP500IndexRequest,
+    market_indicator_service: MarketIndicatorService = Depends(
+        Provide[Container.market_indicator_service]
+    ),
+):
+    """S&P 500 지수 조회 요청을 처리한다."""
+
+    sp500_index_list = market_indicator_service.get_sp500_index(
+        start_date=request.start_date, end_date=request.end_date
+    )
+
+    return [
+        SP500IndexResponse(
+            date=sp500_index.date,
+            open_price=sp500_index.open_price,
+            high_price=sp500_index.high_price,
+            low_price=sp500_index.low_price,
+            close_price=sp500_index.close_price,
+        )
+        for sp500_index in sp500_index_list
     ]

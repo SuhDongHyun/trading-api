@@ -236,7 +236,7 @@ class KISClient(IApiClient):
         end_date: str,
         period: str,
     ):
-        """KIS 지표 차트 응답을 요약과 가격 목록으로 변환한다."""
+        """해외 KIS 지표 차트 응답을 요약과 가격 목록으로 변환한다."""
 
         date_ranges = split_date_range(start_date, end_date, period)
         bodies = []
