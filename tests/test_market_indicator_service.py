@@ -48,12 +48,28 @@ class MarketIndicatorServiceTest(unittest.TestCase):
             maturity="3Y",
             start_date="20260105",
             end_date="20260107",
-            period="D",
         )
 
         self.assertEqual(
             api_client.calls,
             [("I", "Y0101", "20260105", "20260107", "D")],
+        )
+        self.assertEqual(result[0].close_price, 3.15)
+
+    def test_service_delegates_sp500_index_query(self):
+        """S&P 500 지표 코드를 선택해 API client로 위임한다."""
+
+        api_client = FakeApiClient()
+        service = MarketIndicatorService(FakeMarketClient(), api_client)
+
+        result = service.get_sp500_index(
+            start_date="20260105",
+            end_date="20260107",
+        )
+
+        self.assertEqual(
+            api_client.calls,
+            [("N", "SPX", "20260105", "20260107", "D")],
         )
         self.assertEqual(result[0].close_price, 3.15)
 
