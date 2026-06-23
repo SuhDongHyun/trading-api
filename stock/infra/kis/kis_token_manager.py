@@ -1,5 +1,6 @@
 import time
 import requests
+from datetime import datetime
 from typing import Optional, Dict
 from threading import Lock
 
@@ -29,8 +30,13 @@ def _issue_access_token() -> tuple[str, float]:
     if not token:
         raise RuntimeError(f"토큰 발급 실패: {data}")
 
-    # KIS 개인 인증 토큰은 하루 단위 운용을 전제로 캐시한다.
-    exp_epoch = time.time() + 86400
+    token_expired_at = data.get("access_token_token_expired")
+    if not token_expired_at:
+        raise RuntimeError(f"토큰 만료 시각 누락: {data}")
+
+    exp_epoch = datetime.strptime(
+        token_expired_at, "%Y-%m-%d %H:%M:%S"
+    ).timestamp()
     return token, exp_epoch
 
 
