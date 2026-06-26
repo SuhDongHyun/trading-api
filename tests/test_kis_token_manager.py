@@ -1,6 +1,5 @@
 import threading
 import time
-from datetime import datetime
 
 import pytest
 
@@ -42,8 +41,8 @@ def test_access_token_is_issued_once_under_concurrent_first_access(monkeypatch):
     assert results == ["token-1"] * 5
 
 
-def test_issue_access_token_uses_api_expired_at(monkeypatch):
-    """KIS 응답의 명시적인 토큰 만료 시각을 캐시 만료 시각으로 사용한다."""
+def test_issue_access_token_uses_expires_in_with_safety_buffer(monkeypatch):
+    """서버 시간대와 무관하게 expires_in에서 안전 여유를 뺀 시각을 사용한다."""
 
     class FakeResponse:
         def raise_for_status(self):
@@ -61,10 +60,13 @@ def test_issue_access_token_uses_api_expired_at(monkeypatch):
         return FakeResponse()
 
     monkeypatch.setattr(kis_token_manager.requests, "post", fake_post)
+    monkeypatch.setattr(kis_token_manager.time, "time", lambda: 1000.0)
 
     token, exp_epoch = kis_token_manager._issue_access_token()
 
     assert token == "issued-token"
-    assert exp_epoch == datetime.strptime(
-        "2026-06-24 22:03:52", "%Y-%m-%d %H:%M:%S"
-    ).timestamp()
+    assert kis_token_manager.TOKEN_EXPIRY_BUFFER_SECONDS == 60
+    assert (
+        exp_epoch
+        == 1000.0 + 86400 - kis_token_manager.TOKEN_EXPIRY_BUFFER_SECONDS
+    )

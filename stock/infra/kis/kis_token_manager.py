@@ -1,10 +1,11 @@
 import time
 import requests
-from datetime import datetime
 from typing import Optional, Dict
 from threading import Lock
 
 from config import settings
+
+TOKEN_EXPIRY_BUFFER_SECONDS = 60
 
 # KIS 토큰은 프로세스 안에서 재사용해 불필요한 재발급을 줄인다.
 _ACCESS_TOKEN: Optional[str] = None
@@ -30,13 +31,11 @@ def _issue_access_token() -> tuple[str, float]:
     if not token:
         raise RuntimeError(f"토큰 발급 실패: {data}")
 
-    token_expired_at = data.get("access_token_token_expired")
-    if not token_expired_at:
-        raise RuntimeError(f"토큰 만료 시각 누락: {data}")
+    expires_in = data.get("expires_in")
+    if expires_in is None:
+        raise RuntimeError(f"토큰 유효기간 누락: {data}")
 
-    exp_epoch = datetime.strptime(
-        token_expired_at, "%Y-%m-%d %H:%M:%S"
-    ).timestamp()
+    exp_epoch = time.time() + int(expires_in) - TOKEN_EXPIRY_BUFFER_SECONDS
     return token, exp_epoch
 
 
