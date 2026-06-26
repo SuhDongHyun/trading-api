@@ -20,8 +20,23 @@ class VIXIndex:
 
 
 @dataclass
-class MarketIndicatorPrice:
-    """시장 지표 가격 도메인 모델."""
+class DomesticMarketIndicatorPrice:
+    """국내 시장 지표 가격 도메인 모델."""
+
+    date: str
+    open_price: float
+    high_price: float
+    low_price: float
+    close_price: float
+    price_diff: float
+    price_diff_rate: float
+    volume: int
+    trading_value: float
+
+
+@dataclass
+class OverseasMarketIndicatorPrice:
+    """해외 시장 지표 가격 도메인 모델."""
 
     date: str
     open_price: float

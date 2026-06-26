@@ -13,6 +13,10 @@ from stock.interface.schema.market_indicator import (
     TreasuryYieldResponse,
     SP500IndexRequest,
     SP500IndexResponse,
+    KospiIndexRequest,
+    KospiIndexResponse,
+    KosdaqIndexRequest,
+    KosdaqIndexResponse,
 )
 
 router = APIRouter(prefix="/market-indicator", tags=["market-indicator"])
@@ -246,4 +250,64 @@ def get_sp500_index(
             close_price=sp500_index.close_price,
         )
         for sp500_index in sp500_index_list
+    ]
+
+
+@router.post("/kospi-index", response_model=list[KospiIndexResponse])
+@inject
+def get_kospi_index(
+    request: KospiIndexRequest,
+    market_indicator_service: MarketIndicatorService = Depends(
+        Provide[Container.market_indicator_service]
+    ),
+):
+    """KOSPI 지수 조회 요청을 처리한다."""
+
+    kospi_index_list = market_indicator_service.get_kospi_index(
+        start_date=request.start_date, end_date=request.end_date
+    )
+
+    return [
+        KospiIndexResponse(
+            date=kospi_index.date,
+            open_price=kospi_index.open_price,
+            high_price=kospi_index.high_price,
+            low_price=kospi_index.low_price,
+            close_price=kospi_index.close_price,
+            price_diff=kospi_index.price_diff,
+            price_diff_rate=kospi_index.price_diff_rate,
+            volume=kospi_index.volume,
+            trading_value=kospi_index.trading_value,
+        )
+        for kospi_index in kospi_index_list
+    ]
+
+
+@router.post("/kosdaq-index", response_model=list[KosdaqIndexResponse])
+@inject
+def get_kosdaq_index(
+    request: KosdaqIndexRequest,
+    market_indicator_service: MarketIndicatorService = Depends(
+        Provide[Container.market_indicator_service]
+    ),
+):
+    """KOSDAQ 지수 조회 요청을 처리한다."""
+
+    kosdaq_index_list = market_indicator_service.get_kosdaq_index(
+        start_date=request.start_date, end_date=request.end_date
+    )
+
+    return [
+        KosdaqIndexResponse(
+            date=kosdaq_index.date,
+            open_price=kosdaq_index.open_price,
+            high_price=kosdaq_index.high_price,
+            low_price=kosdaq_index.low_price,
+            close_price=kosdaq_index.close_price,
+            price_diff=kosdaq_index.price_diff,
+            price_diff_rate=kosdaq_index.price_diff_rate,
+            volume=kosdaq_index.volume,
+            trading_value=kosdaq_index.trading_value,
+        )
+        for kosdaq_index in kosdaq_index_list
     ]
