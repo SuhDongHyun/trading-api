@@ -1,7 +1,7 @@
 import unittest
 
 from stock.domain.adapter.api_client import IApiClient
-from stock.domain.market import MarketIndicatorPrice
+from stock.domain.market import OverseasMarketIndicatorPrice
 from stock.service.market_indicator_service import MarketIndicatorService
 
 
@@ -24,7 +24,7 @@ class FakeApiClient:
 
         self.calls.append((market, code, start_date, end_date, period))
         return [
-            MarketIndicatorPrice(
+            OverseasMarketIndicatorPrice(
                 date="20260105",
                 open_price=3.1,
                 high_price=3.2,

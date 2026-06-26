@@ -35,11 +35,29 @@ class MarketIndicatorService:
     def get_usd_krw_exchange_rate(self, start_date: str, end_date: str, period: str):
         """현재 시장의 USD/KRW 환율을 조회한다."""
 
-        return self._get_market_indicator_prices(
+        return self._get_overseas_market_indicator_prices(
             "X", "FX@KRW", start_date, end_date, period
         )
 
-    def _get_market_indicator_prices(
+    def _get_domestic_market_indicator_prices(
+        self,
+        market: str,
+        code: str,
+        start_date: str,
+        end_date: str,
+        period: str,
+    ):
+        """조회 기간을 보정한 뒤 시장 지표 가격을 조회한다."""
+
+        valid_start_date, valid_end_date = resolve_base_indicator_date_range(
+            start_date, end_date, period
+        )
+
+        return self.api_client.get_domestic_market_indicator_prices(
+            market, code, valid_start_date, valid_end_date, period
+        )
+
+    def _get_overseas_market_indicator_prices(
         self,
         market: str,
         code: str,
@@ -67,7 +85,9 @@ class MarketIndicatorService:
         """국가와 만기로 국채 수익률을 조회한다."""
 
         code = TREASURY_YIELD_CODES[(country, maturity)]
-        return self._get_market_indicator_prices("I", code, start_date, end_date, "D")
+        return self._get_overseas_market_indicator_prices(
+            "I", code, start_date, end_date, "D"
+        )
 
     def get_korea_1y_treasury_yield(self, start_date: str, end_date: str):
         """현재 시장의 한국 1년 만기 국채 수익률을 조회한다."""
@@ -102,4 +122,20 @@ class MarketIndicatorService:
     def get_sp500_index(self, start_date: str, end_date: str):
         """현재 시장의 S&P 500 지수를 조회한다."""
 
-        return self._get_market_indicator_prices("N", "SPX", start_date, end_date, "D")
+        return self._get_overseas_market_indicator_prices(
+            "N", "SPX", start_date, end_date, "D"
+        )
+
+    def get_kospi_index(self, start_date: str, end_date: str):
+        """현재 시장의 KOSPI 지수를 조회한다."""
+
+        return self._get_domestic_market_indicator_prices(
+            "U", "0001", start_date, end_date, "D"
+        )
+
+    def get_kosdaq_index(self, start_date: str, end_date: str):
+        """현재 시장의 KOSDAQ 지수를 조회한다."""
+
+        return self._get_domestic_market_indicator_prices(
+            "U", "1001", start_date, end_date, "D"
+        )

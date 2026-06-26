@@ -1,8 +1,29 @@
 from typing import Literal
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 PeriodCode = Literal["D", "W", "M", "Y"]
+
+
+class DateRangeRequest(BaseModel):
+    """조회 날짜 범위 요청 모델."""
+
+    start_date: str = Field(
+        default="20260101",
+        pattern=r"^\d{8}$",
+        description="조회 시작일입니다.",
+    )
+    end_date: str = Field(
+        default="20260107",
+        pattern=r"^\d{8}$",
+        description="조회 종료일입니다.",
+    )
+
+    @model_validator(mode="after")
+    def validate_date_range(self):
+        if self.start_date > self.end_date:
+            raise ValueError("start_date는 end_date보다 늦을 수 없습니다.")
+        return self
 
 
 class FearAndGreedIndexResponse(BaseModel):
@@ -13,17 +34,10 @@ class FearAndGreedIndexResponse(BaseModel):
     updated_at: datetime
 
 
-class VIXIndexRequest(BaseModel):
+class VIXIndexRequest(DateRangeRequest):
     """VIX 지수 조회 요청 모델."""
 
-    start_date: str = Field(
-        default="20260101",
-        description="조회 시작일입니다.",
-    )
-    end_date: str = Field(
-        default="20260107",
-        description="조회 종료일입니다.",
-    )
+    pass
 
 
 class VIXIndexResponse(BaseModel):
@@ -33,17 +47,9 @@ class VIXIndexResponse(BaseModel):
     value: float
 
 
-class UsdKrwExchangeRateRequest(BaseModel):
+class UsdKrwExchangeRateRequest(DateRangeRequest):
     """USD/KRW 환율 조회 요청 모델."""
 
-    start_date: str = Field(
-        default="20260101",
-        description="조회 시작일입니다.",
-    )
-    end_date: str = Field(
-        default="20260107",
-        description="조회 종료일입니다.",
-    )
     period: PeriodCode = Field(
         default="D",
         description="기간 구분 코드. D(일), W(주), M(월), Y(년) 중 하나입니다.",
@@ -60,17 +66,10 @@ class UsdKrwExchangeRateResponse(BaseModel):
     close_price: float
 
 
-class TreasuryYieldRequest(BaseModel):
+class TreasuryYieldRequest(DateRangeRequest):
     """국채 수익률 조회 요청 모델."""
 
-    start_date: str = Field(
-        default="20260101",
-        description="조회 시작일입니다.",
-    )
-    end_date: str = Field(
-        default="20260107",
-        description="조회 종료일입니다.",
-    )
+    pass
 
 
 class TreasuryYieldResponse(BaseModel):
@@ -80,17 +79,10 @@ class TreasuryYieldResponse(BaseModel):
     yield_rate: float
 
 
-class SP500IndexRequest(BaseModel):
+class SP500IndexRequest(DateRangeRequest):
     """S&P 500 지수 조회 요청 모델."""
 
-    start_date: str = Field(
-        default="20260101",
-        description="조회 시작일입니다.",
-    )
-    end_date: str = Field(
-        default="20260107",
-        description="조회 종료일입니다.",
-    )
+    pass
 
 
 class SP500IndexResponse(BaseModel):
@@ -101,3 +93,43 @@ class SP500IndexResponse(BaseModel):
     high_price: float
     low_price: float
     close_price: float
+
+
+class KospiIndexRequest(DateRangeRequest):
+    """KOSPI 지수 조회 요청 모델."""
+
+    pass
+
+
+class KospiIndexResponse(BaseModel):
+    """KOSPI 지수 응답 모델."""
+
+    date: str
+    open_price: float
+    high_price: float
+    low_price: float
+    close_price: float
+    price_diff: float
+    price_diff_rate: float
+    volume: int
+    trading_value: float
+
+
+class KosdaqIndexRequest(DateRangeRequest):
+    """KOSDAQ 지수 조회 요청 모델."""
+
+    pass
+
+
+class KosdaqIndexResponse(BaseModel):
+    """KOSDAQ 지수 응답 모델."""
+
+    date: str
+    open_price: float
+    high_price: float
+    low_price: float
+    close_price: float
+    price_diff: float
+    price_diff_rate: float
+    volume: int
+    trading_value: float
