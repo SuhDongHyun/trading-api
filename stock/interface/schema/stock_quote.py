@@ -1,12 +1,12 @@
 from typing import Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 PeriodCode = Literal["D", "W", "M", "Y"]
 
 
-class StockInfoRequest(BaseModel):
-    """현재가 조회에 필요한 시장 구분과 종목 코드."""
+class StockQuoteRequest(BaseModel):
+    """주식 시세 조회 공통 요청 모델."""
 
     market: str = Field(
         default="J", description="시장 구분 코드. 국내 주식은 J를 사용합니다."
@@ -14,6 +14,38 @@ class StockInfoRequest(BaseModel):
     code: str = Field(
         default="005930", description="종목 코드. 기본값은 삼성전자 005930입니다."
     )
+
+
+class HistoricalStockQuoteRequest(StockQuoteRequest):
+    """기간별 주식 시세 조회 공통 요청 모델."""
+
+    start_date: str = Field(
+        default="20260101",
+        pattern=r"^\d{8}$",
+        description="조회 시작일입니다.",
+    )
+    end_date: str = Field(
+        default="20260107",
+        pattern=r"^\d{8}$",
+        description="조회 종료일입니다.",
+    )
+    period: PeriodCode = Field(
+        default="D",
+        description="기간 구분 코드. D(일), W(주), M(월), Y(년) 중 하나입니다.",
+    )
+    adjusted_price: bool = Field(default=True, description="수정주가 반영 여부입니다.")
+
+    @model_validator(mode="after")
+    def validate_date_range(self):
+        if self.start_date > self.end_date:
+            raise ValueError("start_date는 end_date보다 늦을 수 없습니다.")
+        return self
+
+
+class StockInfoRequest(StockQuoteRequest):
+    """현재가 조회에 필요한 시장 구분과 종목 코드."""
+
+    pass
 
 
 class StockInfoResponse(BaseModel):
@@ -41,28 +73,10 @@ class StockInfoResponse(BaseModel):
     price_diff_rate: float
 
 
-class DailyStockPriceRequest(BaseModel):
+class DailyStockPriceRequest(HistoricalStockQuoteRequest):
     """일봉 조회 요청 파라미터."""
 
-    market: str = Field(
-        default="J", description="시장 구분 코드. 국내 주식은 J를 사용합니다."
-    )
-    code: str = Field(
-        default="005930", description="종목 코드. 기본값은 삼성전자 005930입니다."
-    )
-    start_date: str = Field(
-        default="20260101",
-        description="조회 시작일입니다.",
-    )
-    end_date: str = Field(
-        default="20260107",
-        description="조회 종료일입니다.",
-    )
-    period: PeriodCode = Field(
-        default="D",
-        description="기간 구분 코드. D(일), W(주), M(월), Y(년) 중 하나입니다.",
-    )
-    adjusted_price: bool = Field(default=True, description="수정주가 반영 여부입니다.")
+    pass
 
 
 class DailyStockPriceResponse(BaseModel):
@@ -80,28 +94,9 @@ class DailyStockPriceResponse(BaseModel):
     change_flag: str
 
 
-class MovingAverageRequest(BaseModel):
+class MovingAverageRequest(HistoricalStockQuoteRequest):
     """이동평균 계산 요청 파라미터."""
 
-    market: str = Field(
-        default="J", description="시장 구분 코드. 국내 주식은 J를 사용합니다."
-    )
-    code: str = Field(
-        default="005930", description="종목 코드. 기본값은 삼성전자 005930입니다."
-    )
-    start_date: str = Field(
-        default="20260101",
-        description="조회 시작일입니다.",
-    )
-    end_date: str = Field(
-        default="20260107",
-        description="조회 종료일입니다.",
-    )
-    period: PeriodCode = Field(
-        default="D",
-        description="기간 구분 코드. D(일), W(주), M(월), Y(년) 중 하나입니다.",
-    )
-    adjusted_price: bool = Field(default=True, description="수정주가 반영 여부입니다.")
     window: int = Field(default=20, ge=1, description="이동평균 계산 기간입니다.")
 
 
@@ -112,28 +107,9 @@ class MovingAverageResponse(BaseModel):
     moving_average: float
 
 
-class RsiRequest(BaseModel):
+class RsiRequest(HistoricalStockQuoteRequest):
     """RSI 계산 요청 파라미터."""
 
-    market: str = Field(
-        default="J", description="시장 구분 코드. 국내 주식은 J를 사용합니다."
-    )
-    code: str = Field(
-        default="005930", description="종목 코드. 기본값은 삼성전자 005930입니다."
-    )
-    start_date: str = Field(
-        default="20260101",
-        description="조회 시작일입니다.",
-    )
-    end_date: str = Field(
-        default="20260107",
-        description="조회 종료일입니다.",
-    )
-    period: PeriodCode = Field(
-        default="D",
-        description="기간 구분 코드. D(일), W(주), M(월), Y(년) 중 하나입니다.",
-    )
-    adjusted_price: bool = Field(default=True, description="수정주가 반영 여부입니다.")
     rsi_window: int = Field(default=14, ge=1, description="RSI 계산 기간입니다.")
 
 
@@ -144,29 +120,9 @@ class RsiResponse(BaseModel):
     rsi: float
 
 
-class RsiSignalRequest(BaseModel):
+class RsiSignalRequest(RsiRequest):
     """RSI 신호 계산 요청 파라미터."""
 
-    market: str = Field(
-        default="J", description="시장 구분 코드. 국내 주식은 J를 사용합니다."
-    )
-    code: str = Field(
-        default="005930", description="종목 코드. 기본값은 삼성전자 005930입니다."
-    )
-    start_date: str = Field(
-        default="20260101",
-        description="조회 시작일입니다.",
-    )
-    end_date: str = Field(
-        default="20260107",
-        description="조회 종료일입니다.",
-    )
-    period: PeriodCode = Field(
-        default="D",
-        description="기간 구분 코드. D(일), W(주), M(월), Y(년) 중 하나입니다.",
-    )
-    adjusted_price: bool = Field(default=True, description="수정주가 반영 여부입니다.")
-    rsi_window: int = Field(default=14, ge=1, description="RSI 계산 기간입니다.")
     ema_window: int = Field(
         default=9, ge=1, description="RSI signal EMA 계산 기간입니다."
     )
@@ -180,28 +136,9 @@ class RsiSignalResponse(BaseModel):
     signal: str
 
 
-class MacdRequest(BaseModel):
+class MacdRequest(HistoricalStockQuoteRequest):
     """MACD 계산 요청 파라미터."""
 
-    market: str = Field(
-        default="J", description="시장 구분 코드. 국내 주식은 J를 사용합니다."
-    )
-    code: str = Field(
-        default="005930", description="종목 코드. 기본값은 삼성전자 005930입니다."
-    )
-    start_date: str = Field(
-        default="20260101",
-        description="조회 시작일입니다.",
-    )
-    end_date: str = Field(
-        default="20260107",
-        description="조회 종료일입니다.",
-    )
-    period: PeriodCode = Field(
-        default="D",
-        description="기간 구분 코드. D(일), W(주), M(월), Y(년) 중 하나입니다.",
-    )
-    adjusted_price: bool = Field(default=True, description="수정주가 반영 여부입니다.")
     ema_short_window: int = Field(
         default=12, ge=1, description="MACD 단기 EMA 계산 기간입니다."
     )
@@ -217,34 +154,9 @@ class MacdResponse(BaseModel):
     macd: float
 
 
-class MacdSignalRequest(BaseModel):
+class MacdSignalRequest(MacdRequest):
     """MACD 신호 계산 요청 파라미터."""
 
-    market: str = Field(
-        default="J", description="시장 구분 코드. 국내 주식은 J를 사용합니다."
-    )
-    code: str = Field(
-        default="005930", description="종목 코드. 기본값은 삼성전자 005930입니다."
-    )
-    start_date: str = Field(
-        default="20260101",
-        description="조회 시작일입니다.",
-    )
-    end_date: str = Field(
-        default="20260107",
-        description="조회 종료일입니다.",
-    )
-    period: PeriodCode = Field(
-        default="D",
-        description="기간 구분 코드. D(일), W(주), M(월), Y(년) 중 하나입니다.",
-    )
-    adjusted_price: bool = Field(default=True, description="수정주가 반영 여부입니다.")
-    ema_short_window: int = Field(
-        default=12, ge=1, description="MACD 단기 EMA 계산 기간입니다."
-    )
-    ema_long_window: int = Field(
-        default=26, ge=1, description="MACD 장기 EMA 계산 기간입니다."
-    )
     ema_window: int = Field(
         default=9, ge=1, description="MACD signal EMA 계산 기간입니다."
     )

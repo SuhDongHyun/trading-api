@@ -4,16 +4,39 @@ from pydantic import ValidationError
 
 from stock.interface.schema.stock_quote import (
     DailyStockPriceRequest,
+    HistoricalStockQuoteRequest,
     MacdRequest,
+    MacdSignalRequest,
     MovingAverageRequest,
     RsiRequest,
     RsiSignalRequest,
+    StockQuoteRequest,
     StockInfoRequest,
 )
 
 
 class StockQuoteSchemaTest(unittest.TestCase):
     """시세 조회 요청 스키마 기본값과 validation을 검증한다."""
+
+    def test_request_schemas_inherit_common_field_models(self):
+        """요청 모델은 공통 필드 모델을 상속한다."""
+
+        self.assertTrue(issubclass(StockInfoRequest, StockQuoteRequest))
+
+        historical_request_classes = [
+            DailyStockPriceRequest,
+            MovingAverageRequest,
+            RsiRequest,
+            RsiSignalRequest,
+            MacdRequest,
+            MacdSignalRequest,
+        ]
+
+        for request_class in historical_request_classes:
+            self.assertTrue(issubclass(request_class, HistoricalStockQuoteRequest))
+
+        self.assertTrue(issubclass(RsiSignalRequest, RsiRequest))
+        self.assertTrue(issubclass(MacdSignalRequest, MacdRequest))
 
     def test_request_schemas_provide_controller_defaults(self):
         """시장, 종목, 조회 기간 기본값이 자동으로 채워진다."""
@@ -25,6 +48,7 @@ class StockQuoteSchemaTest(unittest.TestCase):
             RsiRequest,
             RsiSignalRequest,
             MacdRequest,
+            MacdSignalRequest,
         ]
 
         for request_class in request_classes:
@@ -46,6 +70,7 @@ class StockQuoteSchemaTest(unittest.TestCase):
             RsiRequest,
             RsiSignalRequest,
             MacdRequest,
+            MacdSignalRequest,
         ]
 
         for request_class in request_classes:
@@ -65,6 +90,9 @@ class StockQuoteSchemaTest(unittest.TestCase):
             (RsiSignalRequest, {"ema_window": 0}),
             (MacdRequest, {"ema_short_window": 0}),
             (MacdRequest, {"ema_long_window": 0}),
+            (MacdSignalRequest, {"ema_short_window": 0}),
+            (MacdSignalRequest, {"ema_long_window": 0}),
+            (MacdSignalRequest, {"ema_window": 0}),
         ]
 
         for request_class, kwargs in invalid_cases:
@@ -81,11 +109,27 @@ class StockQuoteSchemaTest(unittest.TestCase):
             RsiRequest,
             RsiSignalRequest,
             MacdRequest,
+            MacdSignalRequest,
         ]
 
         for request_class in request_classes:
             for field in request_class.model_fields.values():
                 self.assertIsNotNone(field.description)
+
+    def test_historical_requests_reject_invalid_date_ranges(self):
+        """조회 날짜는 YYYYMMDD 형식이며 시작일이 종료일보다 늦을 수 없다."""
+
+        with self.assertRaises(ValidationError):
+            HistoricalStockQuoteRequest(start_date="2026-01-01")
+
+        with self.assertRaisesRegex(
+            ValidationError,
+            "start_date는 end_date보다 늦을 수 없습니다.",
+        ):
+            HistoricalStockQuoteRequest(
+                start_date="20260108",
+                end_date="20260107",
+            )
 
 
 if __name__ == "__main__":
