@@ -4,7 +4,7 @@ import pandas as pd
 from itertools import accumulate
 
 from stock.domain.indicator import Rsi, RsiSignal
-from stock.domain.price import DailyStockPrice
+from stock.domain.stock import DailyStockPrice
 
 
 def calculate_rsi_values(

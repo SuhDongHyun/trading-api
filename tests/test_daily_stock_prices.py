@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from stock.domain.price import DailyStockPrice
+from stock.domain.stock import DailyStockPrice
 from stock.infra.kis.kis_client import KISClient
 from stock.interface.controller.stock_quote_controller import get_daily_stock_prices
 from stock.interface.schema.stock_quote import DailyStockPriceRequest

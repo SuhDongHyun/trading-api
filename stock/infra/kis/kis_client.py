@@ -5,8 +5,7 @@ from datetime import datetime
 from config import settings
 
 from stock.domain.account import Position, Account, AccountSummary
-from stock.domain.stock import StockInfo
-from stock.domain.price import DailyStockPrice
+from stock.domain.stock import DailyStockPrice, StockInfo
 from stock.domain.news import News
 from stock.domain.market import (
     DomesticMarketIndicatorPrice,
