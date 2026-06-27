@@ -7,3 +7,5 @@ app:
     appsecret: ""
   fred:
     api_key: ""
+  krx:
+    api_key: ""

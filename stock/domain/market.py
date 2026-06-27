@@ -3,24 +3,7 @@ from datetime import datetime
 
 
 @dataclass
-class FearAndGreedIndex:
-    """공포와 탐욕 지수 도메인 모델."""
-
-    value: float
-    condition: str
-    updated_at: datetime
-
-
-@dataclass
-class VIXIndex:
-    """VIX 지수 도메인 모델."""
-
-    date: str
-    value: float
-
-
-@dataclass
-class DomesticMarketIndicatorPrice:
+class DomesticMarketIndexPrice:
     """국내 시장 지표 가격 도메인 모델."""
 
     date: str
@@ -35,7 +18,7 @@ class DomesticMarketIndicatorPrice:
 
 
 @dataclass
-class OverseasMarketIndicatorPrice:
+class OverseasMarketIndexPrice:
     """해외 시장 지표 가격 도메인 모델."""
 
     date: str
@@ -43,3 +26,33 @@ class OverseasMarketIndicatorPrice:
     high_price: float
     low_price: float
     close_price: float
+
+
+@dataclass
+class VKospiIndex:
+    """VKOSPI 지수 도메인 모델."""
+
+    date: str
+    open_price: float
+    high_price: float
+    low_price: float
+    close_price: float
+    price_diff: float
+    price_diff_rate: float
+
+
+@dataclass
+class FearAndGreedIndex:
+    """공포와 탐욕 지수 도메인 모델."""
+
+    value: float
+    condition: str
+    updated_at: datetime
+
+
+@dataclass
+class VIXIndex:
+    """VIX 지수 도메인 모델."""
+
+    date: str
+    value: float

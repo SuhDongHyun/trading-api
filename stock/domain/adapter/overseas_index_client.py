@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 
 
-class IMarketClient(ABC):
-    """시장 관련 정보를 제공하는 포트."""
+class IOverseasIndexClient(ABC):
+    """해외 시장 지수 정보를 제공하는 포트."""
 
     @abstractmethod
     def get_fear_and_greed_index(self):
