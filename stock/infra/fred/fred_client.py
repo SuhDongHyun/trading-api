@@ -3,7 +3,7 @@ from fredapi import Fred
 
 from config import settings
 from stock.domain.market import FearAndGreedIndex, VIXIndex
-from stock.domain.adapter.market_client import IMarketClient
+from stock.domain.adapter.overseas_index_client import IOverseasIndexClient
 
 
 FEAR_AND_GREED_CONDITION_RANGES = (
@@ -15,7 +15,7 @@ FEAR_AND_GREED_CONDITION_RANGES = (
 )
 
 
-class FredClient(IMarketClient):
+class FredClient(IOverseasIndexClient):
     """FRED API 응답을 시장 지표 도메인 값으로 변환하는 어댑터."""
 
     def __init__(self):

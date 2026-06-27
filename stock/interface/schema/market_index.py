@@ -1,8 +1,5 @@
-from typing import Literal
 from datetime import datetime
 from pydantic import BaseModel, Field, model_validator
-
-PeriodCode = Literal["D", "W", "M", "Y"]
 
 
 class DateRangeRequest(BaseModel):
@@ -47,13 +44,28 @@ class VIXIndexResponse(BaseModel):
     value: float
 
 
+class VkospiIndexRequest(DateRangeRequest):
+    """VKOSPI 지수 조회 요청 모델."""
+
+    pass
+
+
+class VkospiIndexResponse(BaseModel):
+    """VKOSPI 지수 응답 모델."""
+
+    date: str
+    open_price: float
+    high_price: float
+    low_price: float
+    close_price: float
+    price_diff: float
+    price_diff_rate: float
+
+
 class UsdKrwExchangeRateRequest(DateRangeRequest):
     """USD/KRW 환율 조회 요청 모델."""
 
-    period: PeriodCode = Field(
-        default="D",
-        description="기간 구분 코드. D(일), W(주), M(월), Y(년) 중 하나입니다.",
-    )
+    pass
 
 
 class UsdKrwExchangeRateResponse(BaseModel):

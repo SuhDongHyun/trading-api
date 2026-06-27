@@ -4,7 +4,7 @@ import numpy as np
 from itertools import accumulate
 
 from stock.domain.indicator import Macd, MacdSignal, MovingAverage
-from stock.domain.price import DailyStockPrice
+from stock.domain.stock import DailyStockPrice
 
 
 def calculate_moving_average_values(

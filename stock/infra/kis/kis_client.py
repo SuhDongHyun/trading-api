@@ -1,16 +1,15 @@
 import logging
 from itertools import chain
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from config import settings
 
 from stock.domain.account import Position, Account, AccountSummary
-from stock.domain.stock import StockInfo
-from stock.domain.price import DailyStockPrice
+from stock.domain.stock import DailyStockPrice, StockInfo
 from stock.domain.news import News
 from stock.domain.market import (
-    DomesticMarketIndicatorPrice,
-    OverseasMarketIndicatorPrice,
+    DomesticMarketIndexPrice,
+    OverseasMarketIndexPrice,
 )
 from stock.domain.adapter.api_client import IApiClient
 from stock.infra.kis.kis_http_client import api_get
@@ -231,37 +230,52 @@ class KISClient(IApiClient):
             if news.published_at.strftime("%Y%m%d") == search_date
         ]
 
-    def get_domestic_market_indicator_prices(
+    def get_domestic_market_index_prices(
         self,
         market: str,
         code: str,
         start_date: str,
         end_date: str,
         period: str,
-    ) -> list[DomesticMarketIndicatorPrice]:
+    ) -> list[DomesticMarketIndexPrice]:
         """지정한 기간의 국내 KIS 지표 가격을 조회한다."""
 
         start_day = datetime.strptime(start_date, "%Y%m%d")
         end_day = datetime.strptime(end_date, "%Y%m%d")
-        path = "/uapi/domestic-stock/v1/quotations/inquire-daily-indexchartprice"
-        params = {
-            "FID_COND_MRKT_DIV_CODE": market,
-            "FID_INPUT_ISCD": code,
-            "FID_INPUT_DATE_1": start_date,
-            "FID_INPUT_DATE_2": end_date,
-            "FID_PERIOD_DIV_CODE": period,
-        }
-        resp = api_get(path=path, params=params, tr_id="FHKUP03500100")
-        prices_by_date = {
-            price_day: price
-            for price in resp.json()["output2"]
-            if start_day
-            <= (price_day := datetime.strptime(price["stck_bsop_date"], "%Y%m%d"))
-            <= end_day
-        }
+
+        prices_by_date = {}
+        cursor_date = end_date
+
+        while True:
+            path = "/uapi/domestic-stock/v1/quotations/inquire-index-daily-price"
+            params = {
+                "FID_COND_MRKT_DIV_CODE": market,
+                "FID_INPUT_ISCD": code,
+                "FID_INPUT_DATE_1": cursor_date,
+                "FID_PERIOD_DIV_CODE": period,
+            }
+            resp = api_get(path=path, params=params, tr_id="FHPUP02120000")
+            prices = resp.json()["output2"]
+            if not prices:
+                break
+
+            dated_prices = [
+                (datetime.strptime(price["stck_bsop_date"], "%Y%m%d"), price)
+                for price in prices
+            ]
+
+            for price_day, price in dated_prices:
+                if start_day <= price_day <= end_day:
+                    prices_by_date[price_day] = price
+
+            earliest_day = min(price_day for price_day, _ in dated_prices)
+            if earliest_day <= start_day:
+                break
+
+            cursor_date = (earliest_day - timedelta(days=1)).strftime("%Y%m%d")
 
         return [
-            DomesticMarketIndicatorPrice(
+            DomesticMarketIndexPrice(
                 date=price["stck_bsop_date"],
                 open_price=to_float(price["bstp_nmix_oprc"]),
                 high_price=to_float(price["bstp_nmix_hgpr"]),
@@ -275,7 +289,7 @@ class KISClient(IApiClient):
             for _, price in sorted(prices_by_date.items())
         ]
 
-    def get_overseas_market_indicator_prices(
+    def get_overseas_market_index_prices(
         self,
         market: str,
         code: str,
@@ -283,7 +297,7 @@ class KISClient(IApiClient):
         end_date: str,
         period: str,
     ):
-        """해외 KIS 지표 차트 응답을 요약과 가격 목록으로 변환한다."""
+        """지정한 기간의 해외 KIS 지표 가격을 조회한다."""
 
         date_ranges = split_date_range(start_date, end_date, period)
         bodies = []
@@ -303,7 +317,7 @@ class KISClient(IApiClient):
         prices = list(chain.from_iterable(body["output2"][::-1] for body in bodies))
 
         return [
-            OverseasMarketIndicatorPrice(
+            OverseasMarketIndexPrice(
                 date=price["stck_bsop_date"],
                 open_price=to_float(price["ovrs_nmix_oprc"]),
                 high_price=to_float(price["ovrs_nmix_hgpr"]),

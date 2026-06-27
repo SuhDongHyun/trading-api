@@ -42,7 +42,7 @@ class IApiClient(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_overseas_market_indicator_prices(
+    def get_domestic_market_index_prices(
         self,
         market: str,
         code: str,
@@ -50,6 +50,19 @@ class IApiClient(ABC):
         end_date: str,
         period: str,
     ):
-        """지정 기간의 해외 시장 지표 가격 목록을 조회한다."""
+        """지정한 기간의 국내 KIS 지표 가격을 조회한다."""
+
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_overseas_market_index_prices(
+        self,
+        market: str,
+        code: str,
+        start_date: str,
+        end_date: str,
+        period: str,
+    ):
+        """지정한 기간의 해외 KIS 지표 가격을 조회한다."""
 
         raise NotImplementedError

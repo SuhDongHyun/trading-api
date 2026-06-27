@@ -1,8 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from stock.domain.price import DailyStockPrice
-from stock.domain.stock import StockInfo
+from stock.domain.stock import DailyStockPrice, StockInfo
 from stock.interface.controller.stock_quote_controller import get_moving_average
 from stock.interface.schema.stock_quote import MovingAverageRequest
 from stock.service.indicator.common import (

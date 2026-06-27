@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from stock.domain.price import DailyStockPrice
+from stock.domain.stock import DailyStockPrice
 from stock.interface.controller.stock_quote_controller import get_rsi, get_rsi_signal
 from stock.interface.schema.stock_quote import RsiRequest, RsiSignalRequest
 from stock.service.stock_quote_service import StockQuoteService

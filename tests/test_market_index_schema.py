@@ -2,7 +2,7 @@ import unittest
 
 from pydantic import ValidationError
 
-from stock.interface.schema.market_indicator import (
+from stock.interface.schema.market_index import (
     DateRangeRequest,
     KosdaqIndexRequest,
     KospiIndexRequest,
@@ -13,8 +13,8 @@ from stock.interface.schema.market_indicator import (
 )
 
 
-class MarketIndicatorSchemaTest(unittest.TestCase):
-    """시장 지표 요청 스키마의 공통 날짜 범위 validation을 검증한다."""
+class MarketIndexSchemaTest(unittest.TestCase):
+    """시장 지수 요청 스키마의 공통 날짜 범위 validation을 검증한다."""
 
     def test_date_range_requests_inherit_common_defaults_and_descriptions(self):
         request_classes = [
