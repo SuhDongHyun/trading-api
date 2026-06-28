@@ -21,7 +21,7 @@ from stock.interface.schema.market_index import (
     KosdaqIndexResponse,
 )
 
-router = APIRouter(prefix="/market-indicator", tags=["market-indicator"])
+router = APIRouter(prefix="/market-index", tags=["market-index"])
 
 
 @router.get("/fear-and-greed-index", response_model=FearAndGreedIndexResponse)
