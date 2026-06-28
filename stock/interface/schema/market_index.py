@@ -23,6 +23,15 @@ class DateRangeRequest(BaseModel):
         return self
 
 
+class StockMetaInfoResponse(BaseModel):
+    """단일 종목의 기본 정보 응답 모델."""
+
+    market_name: str
+    code: str
+    name: str
+    department: str
+
+
 class FearAndGreedIndexResponse(BaseModel):
     """공포탐욕지수 응답 모델."""
 

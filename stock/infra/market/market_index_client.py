@@ -17,6 +17,11 @@ class MarketIndexClient(ICompositeIndexClient):
         self.overseas_client = overseas_client
         self.domestic_client = domestic_client
 
+    def get_korea_stock_list(self):
+        """KRX 상장 종목 리스트를 조회한다."""
+
+        return self.domestic_client.get_korea_stock_list()
+
     def get_fear_and_greed_index(self):
         """현재 시장의 공포탐욕지수를 조회한다."""
 

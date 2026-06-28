@@ -4,6 +4,7 @@ from dependency_injector.wiring import inject, Provide
 from container import Container
 from stock.service.market_index_service import MarketIndexService
 from stock.interface.schema.market_index import (
+    StockMetaInfoResponse,
     FearAndGreedIndexResponse,
     VIXIndexRequest,
     VIXIndexResponse,
@@ -21,7 +22,29 @@ from stock.interface.schema.market_index import (
     KosdaqIndexResponse,
 )
 
-router = APIRouter(prefix="/market-indicator", tags=["market-indicator"])
+router = APIRouter(prefix="/market-index", tags=["market-index"])
+
+
+@router.get("/korea-stock-list", response_model=list[StockMetaInfoResponse])
+@inject
+def get_korea_stock_list(
+    market_index_service: MarketIndexService = Depends(
+        Provide[Container.market_index_service]
+    ),
+):
+    """KRX 상장 종목 리스트 조회 요청을 처리한다."""
+
+    korea_stock_list = market_index_service.get_korea_stock_list()
+
+    return [
+        StockMetaInfoResponse(
+            market_name=stock_meta_info.market_name,
+            code=stock_meta_info.code,
+            name=stock_meta_info.name,
+            department=stock_meta_info.department,
+        )
+        for stock_meta_info in korea_stock_list
+    ]
 
 
 @router.get("/fear-and-greed-index", response_model=FearAndGreedIndexResponse)

@@ -5,6 +5,10 @@ class ICompositeIndexClient(ABC):
     """국내외 시장 지수 정보를 제공하는 통합 포트."""
 
     @abstractmethod
+    def get_korea_stock_list(self):
+        raise NotImplementedError
+
+    @abstractmethod
     def get_fear_and_greed_index(self):
         raise NotImplementedError
 

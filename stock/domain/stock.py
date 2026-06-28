@@ -2,6 +2,16 @@ from dataclasses import dataclass
 
 
 @dataclass
+class StockMetaInfo:
+    """단일 종목의 기본 정보."""
+
+    market_name: str
+    code: str
+    name: str
+    department: str
+
+
+@dataclass
 class StockInfo:
     """단일 종목의 현재가와 거래량 등 시세 상세 정보."""
 
