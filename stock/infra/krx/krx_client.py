@@ -1,16 +1,27 @@
 import requests
+import pandas as pd
+import FinanceDataReader as fdr
 
 from config import settings
 from common.exchange_calendar import get_krx_calendar
+from stock.domain.stock import StockMetaInfo
 from stock.domain.market import VKospiIndex
 from stock.domain.adapter.domestic_index_client import IDomesticIndexClient
 
 
-VKOSPI_INDEX_NAME = "코스피 200 변동성지수"
-
-
 class KRXClient(IDomesticIndexClient):
     """KRX Open API 응답을 국내 지수 데이터로 변환하는 어댑터."""
+
+    def get_korea_stock_list(self) -> list[StockMetaInfo]:
+        return [
+            StockMetaInfo(
+                market_name=row["Market"],
+                code=row["Code"],
+                name=row["Name"],
+                department="" if pd.isna(row["Dept"]) else str(row["Dept"]),
+            )
+            for _, row in fdr.StockListing("KRX").iterrows()
+        ]
 
     def _get_derivative_index(self, date: str, type: str) -> dict:
         """기준일의 KRX 파생상품지수 일별시세를 DataFrame으로 조회한다."""
