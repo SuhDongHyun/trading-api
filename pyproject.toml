@@ -9,6 +9,7 @@ dependencies = [
     "exchange-calendars>=4.13.2",
     "fastapi>=0.135.3",
     "fear-and-greed>=0.4",
+    "finance-datareader>=0.9.202",
     "fredapi>=0.5.2",
     "matplotlib>=3.10.9",
     "nbformat>=5.10.4",
