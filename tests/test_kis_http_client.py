@@ -20,7 +20,7 @@ def test_api_get_logs_kis_error_response_without_sensitive_headers(
     response = make_response(
         500,
         "https://openapi.koreainvestment.com:9443/uapi/test",
-        '{"msg_cd":"EGW00123","msg1":"KIS failure"}',
+        '{"msg_cd":"KIS00000","msg1":"KIS failure"}',
     )
 
     monkeypatch.setattr(kis_http_client, "acquire_kis_api_slot", lambda: None)
@@ -53,13 +53,56 @@ def test_api_get_logs_kis_error_response_without_sensitive_headers(
     assert "secret-value" not in caplog.text
 
 
+def test_api_get_refreshes_token_once_when_kis_reports_expired_token(monkeypatch):
+    responses = [
+        make_response(
+            500,
+            "https://openapi.koreainvestment.com:9443/uapi/test",
+            '{"rt_cd":"1","msg_cd":"EGW00123","msg1":"기간이 만료된 token 입니다."}',
+        ),
+        make_response(
+            200,
+            "https://openapi.koreainvestment.com:9443/uapi/test",
+            '{"rt_cd":"0","output":[]}',
+        ),
+    ]
+    refresh_flags = []
+    sent_authorizations = []
+
+    def fake_auth_headers(extra=None, force_refresh=False):
+        refresh_flags.append(force_refresh)
+        token = "new-token" if force_refresh else "expired-token"
+        headers = {"authorization": f"Bearer {token}"}
+        if extra:
+            headers.update(extra)
+        return headers
+
+    def fake_get(**kwargs):
+        sent_authorizations.append(kwargs["headers"]["authorization"])
+        return responses.pop(0)
+
+    monkeypatch.setattr(kis_http_client, "acquire_kis_api_slot", lambda: None)
+    monkeypatch.setattr(kis_http_client, "auth_headers", fake_auth_headers)
+    monkeypatch.setattr(kis_http_client, "get", fake_get)
+
+    response = kis_http_client.api_get(
+        path="/uapi/test",
+        params={"FID_INPUT_ISCD": "FX@KRW"},
+        tr_id="FHKST03030100",
+    )
+
+    assert response.status_code == 200
+    assert refresh_flags == [False, True]
+    assert sent_authorizations == ["Bearer expired-token", "Bearer new-token"]
+
+
 def test_api_post_logs_kis_error_response_without_sensitive_headers(
     monkeypatch, caplog
 ):
     response = make_response(
         500,
         "https://openapi.koreainvestment.com:9443/uapi/test",
-        '{"msg_cd":"EGW00123","msg1":"KIS failure"}',
+        '{"msg_cd":"KIS00000","msg1":"KIS failure"}',
     )
 
     monkeypatch.setattr(kis_http_client, "acquire_kis_api_slot", lambda: None)

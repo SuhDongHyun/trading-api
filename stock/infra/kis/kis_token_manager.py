@@ -67,12 +67,14 @@ def clear_access_token_cache():
         _TOKEN_EXP = 0.0
 
 
-def auth_headers(extra: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+def auth_headers(
+    extra: Optional[Dict[str, str]] = None, force_refresh: bool = False
+) -> Dict[str, str]:
     """KIS 호출에 필요한 공통 인증 헤더와 호출별 extra 헤더를 합친다."""
 
     headers = {
         "content-type": "application/json",
-        "authorization": f"Bearer {get_access_token()}",
+        "authorization": f"Bearer {get_access_token(force_refresh=force_refresh)}",
         "appkey": settings.kis.appkey,
         "appsecret": settings.kis.appsecret,
         "custtype": "P",
