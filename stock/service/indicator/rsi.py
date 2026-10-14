@@ -12,9 +12,6 @@ def calculate_rsi_values(
     rsi_period: int,
 ) -> list[Rsi]:
     """조회한 가격 목록에서 요청 구간만 잘라 RSI 값을 붙인다."""
-    if len(prices) < rsi_period + 1:
-        raise ValueError("가격 데이터 개수가 RSI 계산에 필요한 기간보다 작습니다.")
-
     sorted_prices = sorted(prices, key=lambda price: price.date)
     sorted_dates = [price.date for price in sorted_prices]
     close = pd.Series([price.close_price for price in sorted_prices], dtype=float)
@@ -38,11 +35,8 @@ def calculate_rsi_signals(
     rsi_values: list[Rsi], ema_window: int, ema_warmup_days: int
 ) -> list[RsiSignal]:
     """RSI EMA 지표 값에 과매수·과매도 신호를 붙여 반환한다."""
-
-    if len(rsi_values) < ema_warmup_days:
-        raise ValueError("RSI 값 개수가 ema_warmup_days 크기보다 작습니다.")
-
     ema_alpha = 2 / (ema_window + 1)
+    warmup_start = ema_warmup_days - 2
 
     sorted_rsi_values = sorted(rsi_values, key=lambda rsi: rsi.date)
     clipped_rsi_signals = list(
@@ -50,8 +44,8 @@ def calculate_rsi_signals(
             (rsi.value for rsi in sorted_rsi_values),
             lambda signal, rsi: rsi * ema_alpha + signal * (1 - ema_alpha),
         )
-    )[ema_warmup_days - 2 :]
-    clipped_rsi_values = sorted_rsi_values[ema_warmup_days - 2 :]
+    )[warmup_start:]
+    clipped_rsi_values = sorted_rsi_values[warmup_start:]
 
     return [
         RsiSignal(

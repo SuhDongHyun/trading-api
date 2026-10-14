@@ -1,3 +1,4 @@
+from stock.domain.exceptions import NotFoundError
 from stock.domain.port.stock_quote_client import StockQuoteClient
 from stock.service.indicator.common import (
     resolve_base_indicator_date_range,
@@ -41,13 +42,18 @@ class StockQuoteService:
             start_date, end_date
         )
 
-        return self.quote_client.get_daily_stock_prices(
+        prices = self.quote_client.get_daily_stock_prices(
             market=market,
             code=code,
             start_date=valid_start_date,
             end_date=valid_end_date,
             adjusted_price=adjusted_price,
         )
+        if not prices:
+            raise NotFoundError(
+                f"요청 구간에 거래일 또는 시세 데이터가 없습니다: {code}"
+            )
+        return prices
 
     def get_moving_average(
         self,
@@ -59,9 +65,6 @@ class StockQuoteService:
         window: int = 5,
     ):
         """요청 구간의 이동평균 값을 반환한다."""
-
-        if window <= 0:
-            raise ValueError("window must be positive")
 
         fetch_start_date, valid_end_date = resolve_windowed_indicator_date_range(
             start_date, end_date, window
@@ -88,9 +91,6 @@ class StockQuoteService:
     ):
         """요청 구간의 RSI 지표 시계열을 계산한다."""
 
-        if rsi_window <= 0:
-            raise ValueError("rsi_window must be positive")
-
         fetch_start_date, valid_end_date = resolve_windowed_indicator_date_range(
             start_date, end_date, rsi_window, extra_sessions=1
         )
@@ -116,9 +116,6 @@ class StockQuoteService:
         ema_window: int = 9,
     ):
         """RSI 값에 과매수·과매도 신호를 붙여 반환한다."""
-
-        if rsi_window <= 0 or ema_window <= 0:
-            raise ValueError("rsi_window and ema_window must be positive")
 
         ema_warmup_days = calculate_ema_warmup_days(ema_window)
 
@@ -148,9 +145,6 @@ class StockQuoteService:
         ema_long_window: int = 26,
     ):
         """요청 구간의 MACD 지표 시계열을 계산한다."""
-
-        if ema_short_window <= 0 or ema_long_window <= 0:
-            raise ValueError("ema_short_window and ema_long_window must be positive")
 
         stock_info = self.get_stock_info(market, code)
         max_seed_error = calculate_price_ema_seed_error(stock_info.current_price)
@@ -188,11 +182,6 @@ class StockQuoteService:
         ema_window: int = 9,
     ):
         """MACD 값에 시그널선과 매매 신호를 붙여 반환한다."""
-
-        if ema_short_window <= 0 or ema_long_window <= 0 or ema_window <= 0:
-            raise ValueError(
-                "ema_short_window, ema_long_window, and ema_window must be positive"
-            )
 
         ema_warmup_days = calculate_ema_warmup_days(ema_window)
 

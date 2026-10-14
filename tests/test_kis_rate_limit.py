@@ -26,8 +26,11 @@ class FakeResponse:
     def raise_for_status(self):
         return None
 
+    def json(self):
+        return {"rt_cd": "0"}
 
-def make_http_client(rate_limiter, get=None, post=None):
+
+def make_http_client(rate_limiter, get=None):
     return KisHttpClient(
         kis_settings=KISSetting(
             base_url="https://example.test",
@@ -39,7 +42,6 @@ def make_http_client(rate_limiter, get=None, post=None):
         token_manager=Mock(auth_headers=Mock(return_value={"authorization": "test"})),
         rate_limiter=rate_limiter,
         get=get or Mock(return_value=FakeResponse()),
-        post=post or Mock(return_value=FakeResponse()),
     )
 
 
@@ -80,16 +82,6 @@ class KISRateLimitTest(unittest.TestCase):
 
         rate_limiter.acquire.assert_called_once_with()
         get.assert_called_once()
-
-    def test_http_post_uses_the_same_rate_limiter(self):
-        rate_limiter = Mock()
-        post = Mock(return_value=FakeResponse())
-        http_client = make_http_client(rate_limiter, post=post)
-
-        http_client.post(path="/uapi/test", body={"code": "005930"}, tr_id="TEST")
-
-        rate_limiter.acquire.assert_called_once_with()
-        post.assert_called_once()
 
 
 if __name__ == "__main__":

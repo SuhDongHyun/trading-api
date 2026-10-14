@@ -12,9 +12,6 @@ def calculate_moving_average_values(
     window: int,
 ) -> list[MovingAverage]:
     """조회한 가격 목록에서 요청 구간만 잘라 이동평균 값을 붙인다."""
-    if len(prices) < window:
-        raise ValueError("가격 데이터 개수가 window 크기보다 작습니다.")
-
     sorted_prices = sorted(prices, key=lambda price: price.date)
     return [
         MovingAverage(
@@ -36,9 +33,6 @@ def calculate_exponential_moving_average_values(
     ema_warmup_days: int,
 ) -> list[MovingAverage]:
     """조회한 가격 목록에서 요청 구간만 잘라 지수 이동평균 값을 붙인다."""
-    if len(prices) < ema_warmup_days:
-        raise ValueError("가격 데이터 개수가 ema_warmup_days 크기보다 작습니다.")
-
     ema_alpha = 2 / (ema_window + 1)
 
     sorted_prices = sorted(prices, key=lambda price: price.date)
@@ -63,10 +57,6 @@ def calculate_macd_values(
     ema_warmup_days: int,
 ) -> list[Macd]:
     """MACD 지표 값을 계산하여 반환한다."""
-
-    if len(prices) < ema_warmup_days:
-        raise ValueError("가격 데이터 개수가 ema_warmup_days 크기보다 작습니다.")
-
     ema_short = calculate_exponential_moving_average_values(
         prices, ema_short_window, ema_warmup_days
     )
@@ -84,11 +74,8 @@ def calculate_macd_signals(
     macd_values: list[Macd], ema_window: int, ema_warmup_days: int
 ) -> list[MacdSignal]:
     """MACD EMA 지표 값에 과매수·과매도 신호를 붙여 반환한다."""
-
-    if len(macd_values) < ema_warmup_days:
-        raise ValueError("MACD 데이터 개수가 ema_warmup_days 크기보다 작습니다.")
-
     ema_alpha = 2 / (ema_window + 1)
+    warmup_start = ema_warmup_days - 2
 
     sorted_macd_values = sorted(macd_values, key=lambda macd: macd.date)
     clipped_macd_signals = list(
@@ -96,8 +83,8 @@ def calculate_macd_signals(
             (macd.value for macd in sorted_macd_values),
             lambda signal, macd: macd * ema_alpha + signal * (1 - ema_alpha),
         )
-    )[ema_warmup_days - 2 :]
-    clipped_macd_values = sorted_macd_values[ema_warmup_days - 2 :]
+    )[warmup_start:]
+    clipped_macd_values = sorted_macd_values[warmup_start:]
 
     return [
         MacdSignal(
