@@ -78,7 +78,7 @@ curl -X POST http://localhost:9999/stock_quote \
 ```bash
 curl -X POST http://localhost:9999/stock_quote/daily \
   -H "Content-Type: application/json" \
-  -d '{"market":"J","code":"005930","start_date":"20260101","end_date":"20260107","period":"D","adjusted_price":true}'
+  -d '{"market":"J","code":"005930","start_date":"20260101","end_date":"20260107","adjusted_price":true}'
 ```
 
 ### 지표 조회
@@ -86,7 +86,7 @@ curl -X POST http://localhost:9999/stock_quote/daily \
 ```bash
 curl -X POST http://localhost:9999/stock_quote/indicator/rsi \
   -H "Content-Type: application/json" \
-  -d '{"market":"J","code":"005930","start_date":"20260101","end_date":"20260131","period":"D","rsi_window":14}'
+  -d '{"market":"J","code":"005930","start_date":"20260101","end_date":"20260131","rsi_window":14}'
 ```
 
 ### 시장 지표 조회
@@ -94,7 +94,7 @@ curl -X POST http://localhost:9999/stock_quote/indicator/rsi \
 ```bash
 curl -X POST http://localhost:9999/market-indicator/usd-krw-exchange-rate \
   -H "Content-Type: application/json" \
-  -d '{"start_date":"20260101","end_date":"20260107","period":"D"}'
+  -d '{"start_date":"20260101","end_date":"20260107"}'
 ```
 
 ```bash

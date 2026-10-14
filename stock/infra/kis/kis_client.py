@@ -15,6 +15,9 @@ from stock.domain.adapter.api_client import IApiClient
 from stock.infra.kis.kis_http_client import api_get
 from stock.infra.kis.kis_util import to_float, to_int, split_date_range
 
+DAILY_PERIOD_CODE = "D"
+# 서비스 시계열 계산은 일봉만 지원한다.
+
 logger = logging.getLogger(__name__)
 
 
@@ -113,12 +116,11 @@ class KISClient(IApiClient):
         code: str,
         start_date: str,
         end_date: str,
-        period: str,
         adjusted_price: bool = True,
     ) -> list[DailyStockPrice]:
-        """KIS 일봉 차트 응답을 요약과 가격 목록으로 변환한다."""
+        """각 거래일 가격을 받도록 KIS 차트 주기를 D로 고정해 응답을 변환한다."""
 
-        date_ranges = split_date_range(start_date, end_date, period)
+        date_ranges = split_date_range(start_date, end_date)
         bodies = []
 
         for _start_date, _end_date in date_ranges:
@@ -128,7 +130,7 @@ class KISClient(IApiClient):
                 "FID_INPUT_ISCD": code,
                 "FID_INPUT_DATE_1": _start_date,
                 "FID_INPUT_DATE_2": _end_date,
-                "FID_PERIOD_DIV_CODE": period,
+                "FID_PERIOD_DIV_CODE": DAILY_PERIOD_CODE,
                 "FID_ORG_ADJ_PRC": "0" if adjusted_price else "1",
             }
             resp = api_get(path=path, params=params, tr_id="FHKST03010100")
@@ -236,9 +238,8 @@ class KISClient(IApiClient):
         code: str,
         start_date: str,
         end_date: str,
-        period: str,
     ) -> list[DomesticMarketIndexPrice]:
-        """지정한 기간의 국내 KIS 지표 가격을 조회한다."""
+        """국내 지수 시계열도 일별로 유지하도록 KIS 차트 주기를 D로 고정한다."""
 
         start_day = datetime.strptime(start_date, "%Y%m%d")
         end_day = datetime.strptime(end_date, "%Y%m%d")
@@ -252,7 +253,7 @@ class KISClient(IApiClient):
                 "FID_COND_MRKT_DIV_CODE": market,
                 "FID_INPUT_ISCD": code,
                 "FID_INPUT_DATE_1": cursor_date,
-                "FID_PERIOD_DIV_CODE": period,
+                "FID_PERIOD_DIV_CODE": DAILY_PERIOD_CODE,
             }
             resp = api_get(path=path, params=params, tr_id="FHPUP02120000")
             prices = resp.json()["output2"]
@@ -295,11 +296,10 @@ class KISClient(IApiClient):
         code: str,
         start_date: str,
         end_date: str,
-        period: str,
     ):
-        """지정한 기간의 해외 KIS 지표 가격을 조회한다."""
+        """해외 지수 시계열도 일별로 유지하도록 KIS 차트 주기를 D로 고정한다."""
 
-        date_ranges = split_date_range(start_date, end_date, period)
+        date_ranges = split_date_range(start_date, end_date)
         bodies = []
 
         for _start_date, _end_date in date_ranges:
@@ -309,7 +309,7 @@ class KISClient(IApiClient):
                 "FID_INPUT_ISCD": code,
                 "FID_INPUT_DATE_1": _start_date,
                 "FID_INPUT_DATE_2": _end_date,
-                "FID_PERIOD_DIV_CODE": period,
+                "FID_PERIOD_DIV_CODE": DAILY_PERIOD_CODE,
             }
             resp = api_get(path=path, params=params, tr_id="FHKST03030100")
             bodies.append(resp.json())

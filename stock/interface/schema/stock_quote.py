@@ -1,8 +1,4 @@
-from typing import Literal
 from pydantic import BaseModel, Field, model_validator
-
-
-PeriodCode = Literal["D", "W", "M", "Y"]
 
 
 class StockQuoteRequest(BaseModel):
@@ -28,10 +24,6 @@ class HistoricalStockQuoteRequest(StockQuoteRequest):
         default="20260107",
         pattern=r"^\d{8}$",
         description="조회 종료일입니다.",
-    )
-    period: PeriodCode = Field(
-        default="D",
-        description="기간 구분 코드. D(일), W(주), M(월), Y(년) 중 하나입니다.",
     )
     adjusted_price: bool = Field(default=True, description="수정주가 반영 여부입니다.")
 

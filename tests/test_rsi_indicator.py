@@ -16,11 +16,11 @@ class FakeApiClient:
         self.calls = []
 
     def get_daily_stock_prices(
-        self, market, code, start_date, end_date, period, adjusted_price
+        self, market, code, start_date, end_date, adjusted_price
     ):
         """RSI 계산용 일봉 가격을 반환하고 호출 인자를 기록한다."""
 
-        self.calls.append((market, code, start_date, end_date, period, adjusted_price))
+        self.calls.append((market, code, start_date, end_date, adjusted_price))
         prices = [
             self._price("20240401", 10.0),
             self._price("20240402", 14.0),
@@ -50,11 +50,11 @@ class HistoricalRsiApiClient(FakeApiClient):
     """요청 구간 앞의 RSI 선행 이력을 포함하는 API 클라이언트."""
 
     def get_daily_stock_prices(
-        self, market, code, start_date, end_date, period, adjusted_price
+        self, market, code, start_date, end_date, adjusted_price
     ):
         """RSI 범위 필터링 테스트용 일봉 가격을 반환한다."""
 
-        self.calls.append((market, code, start_date, end_date, period, adjusted_price))
+        self.calls.append((market, code, start_date, end_date, adjusted_price))
         prices = [
             self._price("20240401", 10.0),
             self._price("20240402", 12.0),
@@ -98,14 +98,13 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
             code="005930",
             start_date="20240401",
             end_date="20240404",
-            period="D",
             adjusted_price=True,
             rsi_window=3,
         )
 
         self.assertEqual(
             api_client.calls,
-            [("J", "005930", "20240327", "20240404", "D", True)],
+            [("J", "005930", "20240327", "20240404", True)],
         )
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].date, "20240404")
@@ -122,14 +121,13 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
             code="005930",
             start_date="20240405",
             end_date="20240410",
-            period="D",
             adjusted_price=True,
             rsi_window=3,
         )
 
         self.assertEqual(
             api_client.calls,
-            [("J", "005930", "20240402", "20240409", "D", True)],
+            [("J", "005930", "20240402", "20240409", True)],
         )
         self.assertEqual(
             [value.date for value in result],
@@ -146,7 +144,6 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
             code="005930",
             start_date="20240401",
             end_date="20240404",
-            period="D",
             adjusted_price=True,
             rsi_window=3,
         )
@@ -165,14 +162,15 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
             code="005930",
             start_date="20240405",
             end_date="20240410",
-            period="D",
             adjusted_price=True,
             rsi_window=3,
             ema_window=2,
         )
         service = StockQuoteService(HistoricalRsiApiClient())
 
-        with patch("stock.service.stock_quote_service.calculate_ema_warmup_days") as warmup:
+        with patch(
+            "stock.service.stock_quote_service.calculate_ema_warmup_days"
+        ) as warmup:
             warmup.return_value = 2
             response = get_rsi_signal(request, stock_quote_service=service)
 

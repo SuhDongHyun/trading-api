@@ -74,7 +74,6 @@ def get_daily_stock_prices(
         code=request.code,
         start_date=request.start_date,
         end_date=request.end_date,
-        period=request.period,
         adjusted_price=request.adjusted_price,
     )
 
@@ -110,7 +109,6 @@ def get_moving_average(
         code=request.code,
         start_date=request.start_date,
         end_date=request.end_date,
-        period=request.period,
         adjusted_price=request.adjusted_price,
         window=request.window,
     )
@@ -139,7 +137,6 @@ def get_rsi(
         code=request.code,
         start_date=request.start_date,
         end_date=request.end_date,
-        period=request.period,
         adjusted_price=request.adjusted_price,
         rsi_window=request.rsi_window,
     )
@@ -168,7 +165,6 @@ def get_rsi_signal(
         code=request.code,
         start_date=request.start_date,
         end_date=request.end_date,
-        period=request.period,
         adjusted_price=request.adjusted_price,
         rsi_window=request.rsi_window,
         ema_window=request.ema_window,
@@ -199,7 +195,6 @@ def get_macd(
         code=request.code,
         start_date=request.start_date,
         end_date=request.end_date,
-        period=request.period,
         adjusted_price=request.adjusted_price,
         ema_short_window=request.ema_short_window,
         ema_long_window=request.ema_long_window,
@@ -229,7 +224,6 @@ def get_macd_signal(
         code=request.code,
         start_date=request.start_date,
         end_date=request.end_date,
-        period=request.period,
         adjusted_price=request.adjusted_price,
         ema_short_window=request.ema_short_window,
         ema_long_window=request.ema_long_window,
