@@ -62,7 +62,7 @@ def test_account_route_validates_nested_dataclasses_from_attributes():
             {
                 "code": "005930",
                 "name": "삼성전자",
-                "quantity": 2.0,
+                "quantity": 2,
                 "unrealized_pnl": 100.0,
                 "unrealized_return": 1.2,
             }

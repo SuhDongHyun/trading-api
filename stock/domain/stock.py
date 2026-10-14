@@ -19,10 +19,10 @@ class StockInfo:
     code: str
     name: str
     industry: str
-    per: float
-    pbr: float
-    eps: float
-    bps: float
+    per: float | None
+    pbr: float | None
+    eps: float | None
+    bps: float | None
     open_price: float
     current_price: float
     previous_price: float

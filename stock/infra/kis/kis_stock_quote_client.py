@@ -6,6 +6,7 @@ from stock.infra.kis.kis_util import (
     fetch_daily_chart_prices,
     to_float,
     to_int,
+    to_optional_float,
 )
 
 
@@ -16,7 +17,7 @@ class KisStockQuoteClient(StockQuoteClient):
         self._http_client = http_client
 
     def get_stock_info(self, market: str, code: str) -> StockInfo:
-        """KIS 기본 정보와 현재가 응답을 하나의 종목 정보로 합친다."""
+        """기본 정보와 현재가를 결합하고 요청한 종목 식별자를 보존한다."""
 
         def get_output(path: str, params: dict[str, str], tr_id: str):
             return self._http_client.get(path, params=params, tr_id=tr_id).json()[
@@ -42,25 +43,25 @@ class KisStockQuoteClient(StockQuoteClient):
         )
         return StockInfo(
             market_name=stock_info["rprs_mrkt_kor_name"],
-            code=stock_info["bstp_cls_code"],
+            code=code,
             name=stock_info["prdt_abrv_name"],
             industry=stock_info["bstp_kor_isnm"],
-            per=stock_info["per"],
-            pbr=stock_info["pbr"],
-            eps=stock_info["eps"],
-            bps=stock_info["bps"],
-            open_price=stock_info["stck_oprc"],
-            current_price=stock_info["stck_prpr"],
-            previous_price=stock_info["stck_prdy_clpr"],
-            highest_price=stock_info["stck_hgpr"],
-            lowest_price=stock_info["stck_lwpr"],
-            upper_limit_price=stock_info["stck_mxpr"],
-            lower_limit_price=stock_info["stck_llam"],
-            current_volume=stock_info["acml_vol"],
-            previous_volume=stock_info["prdy_vol"],
-            current_trading_value=stock_info["acml_tr_pbmn"],
-            price_diff=stock_info["prdy_vrss"],
-            price_diff_rate=stock_info["prdy_ctrt"],
+            per=to_optional_float(stock_info["per"]),
+            pbr=to_optional_float(stock_info["pbr"]),
+            eps=to_optional_float(stock_info["eps"]),
+            bps=to_optional_float(stock_info["bps"]),
+            open_price=to_float(stock_info["stck_oprc"]),
+            current_price=to_float(stock_info["stck_prpr"]),
+            previous_price=to_float(stock_info["stck_prdy_clpr"]),
+            highest_price=to_float(stock_info["stck_hgpr"]),
+            lowest_price=to_float(stock_info["stck_lwpr"]),
+            upper_limit_price=to_float(stock_info["stck_mxpr"]),
+            lower_limit_price=to_float(stock_info["stck_llam"]),
+            current_volume=to_int(stock_info["acml_vol"]),
+            previous_volume=to_int(stock_info["prdy_vol"]),
+            current_trading_value=to_float(stock_info["acml_tr_pbmn"]),
+            price_diff=to_float(stock_info["prdy_vrss"]),
+            price_diff_rate=to_float(stock_info["prdy_ctrt"]),
         )
 
     def get_daily_stock_prices(
