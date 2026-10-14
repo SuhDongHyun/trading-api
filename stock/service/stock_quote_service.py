@@ -1,5 +1,9 @@
 from stock.domain.exceptions import NotFoundError
 from stock.domain.port.stock_quote_client import StockQuoteClient
+from stock.service.indicator.date_ranges import (
+    calculate_daily_fetch_start_date,
+    normalize_daily_start_date,
+)
 from stock.service.indicator.common import (
     resolve_base_indicator_date_range,
     resolve_windowed_indicator_date_range,
@@ -144,27 +148,45 @@ class StockQuoteService:
         ema_short_window: int = 12,
         ema_long_window: int = 26,
     ):
-        """요청 구간의 MACD 지표 시계열을 계산한다."""
+        """요청 구간 가격을 기준으로 EMA warm-up을 정해 MACD를 계산한다.
 
-        stock_info = self.get_stock_info(market, code)
-        max_seed_error = calculate_price_ema_seed_error(stock_info.current_price)
+        현재가 API를 추가 호출하지 않고 요청 구간의 마지막 종가로 가격 스케일을
+        잡는다. 필요한 선행 가격만 별도 조회해 요청 구간과 이어 붙인다.
+        """
+
+        valid_start_date = normalize_daily_start_date(start_date)
+        prices = self.get_daily_stock_prices(
+            market=market,
+            code=code,
+            start_date=valid_start_date,
+            end_date=end_date,
+            adjusted_price=adjusted_price,
+        )
+        latest_close_price = max(prices, key=lambda price: price.date).close_price
+        max_seed_error = calculate_price_ema_seed_error(latest_close_price)
         ema_warmup_days = calculate_ema_warmup_days(
             ema_long_window, max_seed_error=max_seed_error
         )
-        fetch_start_date, valid_end_date = resolve_windowed_indicator_date_range(
-            start_date, end_date, ema_warmup_days
+        fetch_start_date = calculate_daily_fetch_start_date(
+            valid_start_date, ema_warmup_days
         )
 
-        daily_prices = self.get_daily_stock_prices(
-            market=market,
-            code=code,
-            start_date=fetch_start_date,
-            end_date=valid_end_date,
-            adjusted_price=adjusted_price,
-        )
+        if fetch_start_date < valid_start_date:
+            # 상장 전 구간은 정상일 수 있어 공용 조회 메서드의 404 처리를 거치지 않는다.
+            warmup_end_date = calculate_daily_fetch_start_date(valid_start_date, 2)
+            warmup_prices = self.quote_client.get_daily_stock_prices(
+                market,
+                code,
+                fetch_start_date,
+                warmup_end_date,
+                adjusted_price=adjusted_price,
+            )
+            prices = sorted(
+                [*warmup_prices, *prices], key=lambda price: price.date
+            )
 
         return calculate_macd_values(
-            prices=daily_prices,
+            prices=prices,
             ema_short_window=ema_short_window,
             ema_long_window=ema_long_window,
             ema_warmup_days=ema_warmup_days,

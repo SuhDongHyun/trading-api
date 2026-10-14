@@ -11,7 +11,7 @@ def calculate_rsi_values(
     prices: list[DailyStockPrice],
     rsi_period: int,
 ) -> list[Rsi]:
-    """조회한 가격 목록에서 요청 구간만 잘라 단순 이동평균 RSI를 계산한다."""
+    """단순 이동평균 RSI를 계산하고 손실이 없는 창의 경계값을 정의한다."""
 
     sorted_prices = sorted(prices, key=lambda price: price.date)
     sorted_dates = [price.date for price in sorted_prices]
@@ -23,8 +23,11 @@ def calculate_rsi_values(
 
     avg_gain = gain.rolling(window=rsi_period).mean()
     avg_loss = loss.rolling(window=rsi_period).mean()
+    # 손실만 없는 창은 공식상 100이고, 상승·하락이 모두 없는 창은 중립값 50이다.
     rs = avg_gain / avg_loss
     rsi = 100 - (100 / (1 + rs))
+    no_movement = avg_gain.eq(0) & avg_loss.eq(0)
+    rsi = rsi.mask(no_movement, 50.0)
 
     return [
         Rsi(date=date, value=value)
