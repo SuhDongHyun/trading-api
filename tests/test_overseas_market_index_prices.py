@@ -1,7 +1,9 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock
 
-from stock.infra.kis.kis_client import KISClient
+from stock.infra.kis.kis_overseas_market_index_client import (
+    KisOverseasMarketIndexClient,
+)
 
 
 class FakeResponse:
@@ -24,10 +26,10 @@ class FakeResponse:
 class OverseasMarketIndexPriceTest(unittest.TestCase):
     """해외 지수 요청이 일봉으로 고정되는지 검증한다."""
 
-    @patch("stock.infra.kis.kis_client.api_get")
-    def test_requests_daily_chart_and_maps_response(self, api_get):
-        api_get.return_value = FakeResponse()
-        client = KISClient()
+    def test_requests_daily_chart_and_maps_response(self):
+        http_client = Mock()
+        http_client.get.return_value = FakeResponse()
+        client = KisOverseasMarketIndexClient(http_client)
 
         result = client.get_overseas_market_index_prices(
             market="N",
@@ -36,8 +38,8 @@ class OverseasMarketIndexPriceTest(unittest.TestCase):
             end_date="20240531",
         )
 
-        api_get.assert_called_once_with(
-            path="/uapi/overseas-price/v1/quotations/inquire-daily-chartprice",
+        http_client.get.assert_called_once_with(
+            "/uapi/overseas-price/v1/quotations/inquire-daily-chartprice",
             params={
                 "FID_COND_MRKT_DIV_CODE": "N",
                 "FID_INPUT_ISCD": "SPX",

@@ -7,7 +7,7 @@ from stock.interface.schema.stock_quote import RsiRequest, RsiSignalRequest
 from stock.service.stock_quote_service import StockQuoteService
 
 
-class FakeApiClient:
+class FakeQuoteClient:
     """RSI 계산에 사용할 짧은 고정 가격 API 클라이언트."""
 
     def __init__(self):
@@ -46,7 +46,7 @@ class FakeApiClient:
         )
 
 
-class HistoricalRsiApiClient(FakeApiClient):
+class HistoricalRsiQuoteClient(FakeQuoteClient):
     """요청 구간 앞의 RSI 선행 이력을 포함하는 API 클라이언트."""
 
     def get_daily_stock_prices(
@@ -90,8 +90,8 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
     def test_service_calculates_rsi_from_daily_close_prices(self):
         """서비스가 일봉 종가로 RSI 값을 계산하는지 검증한다."""
 
-        api_client = FakeApiClient()
-        service = StockQuoteService(api_client)
+        quote_client = FakeQuoteClient()
+        service = StockQuoteService(quote_client)
 
         result = service.get_rsi(
             market="J",
@@ -103,7 +103,7 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            api_client.calls,
+            quote_client.calls,
             [("J", "005930", "20240327", "20240404", True)],
         )
         self.assertEqual(len(result), 1)
@@ -113,8 +113,8 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
     def test_service_fetches_history_and_returns_requested_rsi_range(self):
         """RSI 계산 이력을 확보한 뒤 요청 구간만 반환하는지 검증한다."""
 
-        api_client = HistoricalRsiApiClient()
-        service = StockQuoteService(api_client)
+        quote_client = HistoricalRsiQuoteClient()
+        service = StockQuoteService(quote_client)
 
         result = service.get_rsi(
             market="J",
@@ -126,7 +126,7 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            api_client.calls,
+            quote_client.calls,
             [("J", "005930", "20240402", "20240409", True)],
         )
         self.assertEqual(
@@ -147,7 +147,7 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
             adjusted_price=True,
             rsi_window=3,
         )
-        service = StockQuoteService(FakeApiClient())
+        service = StockQuoteService(FakeQuoteClient())
 
         response = get_rsi(request, stock_quote_service=service)
 
@@ -166,7 +166,7 @@ class RsiIndicatorFeatureTest(unittest.TestCase):
             rsi_window=3,
             ema_window=2,
         )
-        service = StockQuoteService(HistoricalRsiApiClient())
+        service = StockQuoteService(HistoricalRsiQuoteClient())
 
         with patch(
             "stock.service.stock_quote_service.calculate_ema_warmup_days"

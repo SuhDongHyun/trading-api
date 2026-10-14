@@ -3,6 +3,8 @@
 from common.exchange_calendar import get_krx_calendar
 
 MAX_CALLABLE_DATES = 100
+# 조회 지표와 KIS 시계열은 거래일 단위로 맞춰 항상 일봉을 요청한다.
+DAILY_PERIOD_CODE = "D"
 
 
 def to_float(value: str | int | float | None) -> float:

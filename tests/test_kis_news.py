@@ -1,10 +1,11 @@
 from datetime import datetime, timedelta
 
-from stock.infra.kis.kis_client import KISClient
+from stock.infra.kis.kis_news_client import KisNewsClient
 
 
-class FakeNewsClient(KISClient):
+class FakeNewsClient(KisNewsClient):
     def __init__(self, pages):
+        super().__init__(http_client=None)
         self.pages = pages
         self.calls = []
 

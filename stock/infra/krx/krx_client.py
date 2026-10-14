@@ -2,15 +2,18 @@ import requests
 import pandas as pd
 import FinanceDataReader as fdr
 
-from config import settings
 from common.exchange_calendar import get_krx_calendar
 from stock.domain.stock import StockMetaInfo
 from stock.domain.market import VKospiIndex
-from stock.domain.adapter.domestic_index_client import IDomesticIndexClient
+from stock.domain.port.korea_stock_list_client import KoreaStockListClient
+from stock.domain.port.vkospi_client import VkospiClient
 
 
-class KRXClient(IDomesticIndexClient):
+class KRXClient(KoreaStockListClient, VkospiClient):
     """KRX Open API 응답을 국내 지수 데이터로 변환하는 어댑터."""
+
+    def __init__(self, api_key: str):
+        self._api_key = api_key
 
     def get_korea_stock_list(self) -> list[StockMetaInfo]:
         return [
@@ -29,7 +32,7 @@ class KRXClient(IDomesticIndexClient):
         res = requests.get(
             "https://data-dbg.krx.co.kr/svc/apis/idx/drvprod_dd_trd",
             params={"basDd": date},
-            headers={"AUTH_KEY": settings.krx.api_key},
+            headers={"AUTH_KEY": self._api_key},
             timeout=10,
         )
         res.raise_for_status()
@@ -40,7 +43,7 @@ class KRXClient(IDomesticIndexClient):
         )
 
     def get_vkospi_index(self, start_date: str, end_date: str) -> list[VKospiIndex]:
-        """KRX 파생상품지수 일별시세를 조회한다."""
+        """휴장일 API 요청을 피하도록 XKRX 거래일별 VKOSPI를 조회한다."""
 
         vkospi_items = [
             self._get_derivative_index(

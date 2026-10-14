@@ -1,7 +1,11 @@
-"""한국투자증권 REST API 호출량을 제한하는 공통 limiter."""
+"""KIS appkey 한도를 위해 컨테이너 Singleton 하나를 프로세스에서 공유한다.
+
+초당 10건 창만으로는 순간 요청 몰림을 막지 못하므로 최소 150ms 간격도 적용한다.
+"""
 
 from threading import Lock
 from time import monotonic, sleep
+from typing import Callable
 
 from pyrate_limiter import Duration, Limiter, Rate
 
@@ -9,23 +13,36 @@ KIS_API_CALLS_PER_SECOND = 10
 KIS_API_MIN_INTERVAL_SECONDS = 0.15
 KIS_API_RATE_LIMIT_KEY = "kis-rest-api"
 
-_limiter = Limiter(Rate(KIS_API_CALLS_PER_SECOND, Duration.SECOND))
-_request_interval_lock = Lock()
-_last_request_at: float | None = None
 
+class KisRateLimiter:
+    """프로세스의 KIS 호출자가 함께 쓰는 rate limiter."""
 
-def acquire_kis_api_slot() -> None:
-    """초당 10건 제한과 요청 간 150ms 간격을 지키며 호출 가능할 때까지 대기한다."""
+    def __init__(
+        self,
+        limiter: Limiter | None = None,
+        clock: Callable[[], float] | None = None,
+        wait: Callable[[float], None] | None = None,
+    ):
+        self._limiter = limiter or Limiter(
+            Rate(KIS_API_CALLS_PER_SECOND, Duration.SECOND)
+        )
+        self._clock = clock or monotonic
+        self._wait = wait or sleep
+        self._request_interval_lock = Lock()
+        self._last_request_at: float | None = None
 
-    _limiter.try_acquire(KIS_API_RATE_LIMIT_KEY, blocking=True)
-    with _request_interval_lock:
-        global _last_request_at
+    def acquire(self) -> None:
+        """초당 제한과 150ms 간격을 모두 만족할 때까지 블로킹한다."""
 
-        now = monotonic()
-        if _last_request_at is not None:
-            wait_seconds = KIS_API_MIN_INTERVAL_SECONDS - (now - _last_request_at)
-            if wait_seconds > 0:
-                sleep(wait_seconds)
-                now = monotonic()
+        self._limiter.try_acquire(KIS_API_RATE_LIMIT_KEY, blocking=True)
+        with self._request_interval_lock:
+            now = self._clock()
+            if self._last_request_at is not None:
+                wait_seconds = KIS_API_MIN_INTERVAL_SECONDS - (
+                    now - self._last_request_at
+                )
+                if wait_seconds > 0:
+                    self._wait(wait_seconds)
+                    now = self._clock()
 
-        _last_request_at = now
+            self._last_request_at = now

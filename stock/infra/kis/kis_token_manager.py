@@ -1,84 +1,82 @@
 import time
-import requests
-from typing import Optional, Dict
 from threading import Lock
+from typing import Callable
 
-from config import settings
+import requests
+
+from config import KISSetting
 
 TOKEN_EXPIRY_BUFFER_SECONDS = 60
 
-# KIS 토큰은 프로세스 안에서 재사용해 불필요한 재발급을 줄인다.
-_ACCESS_TOKEN: Optional[str] = None
-_TOKEN_EXP: float = 0.0  # epoch seconds
-_TOKEN_LOCK = Lock()
 
+class KisTokenManager:
+    """컨테이너 Singleton으로 공유할 KIS 액세스 토큰을 발급하고 만료 전에 갱신한다."""
 
-def _issue_access_token() -> tuple[str, float]:
-    """한국투자증권 Open API 액세스 토큰을 발급하고 만료 시각을 반환한다."""
+    def __init__(
+        self,
+        kis_settings: KISSetting,
+        post: Callable | None = None,
+        clock: Callable[[], float] | None = None,
+    ):
+        self._settings = kis_settings
+        self._post = post or requests.post
+        self._clock = clock or time.time
+        self._access_token: str | None = None
+        self._token_exp: float = 0.0
+        self._lock = Lock()
 
-    url = f"{settings.kis.base_url}/oauth2/tokenP"
-    headers = {"content-type": "application/json"}
-    body = {
-        "grant_type": "client_credentials",
-        "appkey": settings.kis.appkey,
-        "appsecret": settings.kis.appsecret,
-    }
-    resp = requests.post(url, headers=headers, json=body, timeout=10)
-    resp.raise_for_status()
-    data = resp.json()
+    def _issue_access_token(self) -> tuple[str, float]:
+        """KIS 토큰을 발급한다. 만료 여유를 빼 두어 사용 중인 토큰의 만료를 피한다."""
 
-    token = data.get("access_token")
-    if not token:
-        raise RuntimeError(f"토큰 발급 실패: {data}")
+        url = f"{self._settings.base_url}/oauth2/tokenP"
+        headers = {"content-type": "application/json"}
+        body = {
+            "grant_type": "client_credentials",
+            "appkey": self._settings.appkey,
+            "appsecret": self._settings.appsecret,
+        }
+        resp = self._post(url, headers=headers, json=body, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
 
-    expires_in = data.get("expires_in")
-    if expires_in is None:
-        raise RuntimeError(f"토큰 유효기간 누락: {data}")
+        token = data.get("access_token")
+        if not token:
+            raise RuntimeError(f"토큰 발급 실패: {data}")
 
-    exp_epoch = time.time() + int(expires_in) - TOKEN_EXPIRY_BUFFER_SECONDS
-    return token, exp_epoch
+        expires_in = data.get("expires_in")
+        if expires_in is None:
+            raise RuntimeError(f"토큰 유효기간 누락: {data}")
 
+        exp_epoch = self._clock() + int(expires_in) - TOKEN_EXPIRY_BUFFER_SECONDS
+        return token, exp_epoch
 
-def get_access_token(force_refresh: bool = False) -> str:
-    """캐시된 액세스 토큰을 반환하되 필요하면 새 토큰을 발급한다."""
+    def get_access_token(self, force_refresh: bool = False) -> str:
+        """프로세스 공유 토큰을 재사용하고, 최초 발급은 잠금으로 한 번만 수행한다."""
 
-    global _ACCESS_TOKEN, _TOKEN_EXP
+        now = self._clock()
+        if not force_refresh and self._access_token and now < self._token_exp:
+            return self._access_token
 
-    now = time.time()
-    if not force_refresh and _ACCESS_TOKEN and now < _TOKEN_EXP:
-        return _ACCESS_TOKEN
+        with self._lock:
+            now = self._clock()
+            if not force_refresh and self._access_token and now < self._token_exp:
+                return self._access_token
 
-    with _TOKEN_LOCK:
-        now = time.time()
-        if not force_refresh and _ACCESS_TOKEN and now < _TOKEN_EXP:
-            return _ACCESS_TOKEN
+            self._access_token, self._token_exp = self._issue_access_token()
+            return self._access_token
 
-        _ACCESS_TOKEN, _TOKEN_EXP = _issue_access_token()
-        return _ACCESS_TOKEN
+    def auth_headers(
+        self, extra: dict[str, str] | None = None, force_refresh: bool = False
+    ) -> dict[str, str]:
+        """호출별 TR ID를 공통 인증 헤더와 병합한다."""
 
-
-def clear_access_token_cache():
-    """프로세스 안의 KIS 액세스 토큰 캐시를 초기화한다."""
-
-    global _ACCESS_TOKEN, _TOKEN_EXP
-
-    with _TOKEN_LOCK:
-        _ACCESS_TOKEN = None
-        _TOKEN_EXP = 0.0
-
-
-def auth_headers(
-    extra: Optional[Dict[str, str]] = None, force_refresh: bool = False
-) -> Dict[str, str]:
-    """KIS 호출에 필요한 공통 인증 헤더와 호출별 extra 헤더를 합친다."""
-
-    headers = {
-        "content-type": "application/json",
-        "authorization": f"Bearer {get_access_token(force_refresh=force_refresh)}",
-        "appkey": settings.kis.appkey,
-        "appsecret": settings.kis.appsecret,
-        "custtype": "P",
-    }
-    if extra:
-        headers.update(extra)
-    return headers
+        headers = {
+            "content-type": "application/json",
+            "authorization": f"Bearer {self.get_access_token(force_refresh)}",
+            "appkey": self._settings.appkey,
+            "appsecret": self._settings.appsecret,
+            "custtype": "P",
+        }
+        if extra:
+            headers.update(extra)
+        return headers

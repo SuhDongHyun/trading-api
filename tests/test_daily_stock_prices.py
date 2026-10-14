@@ -1,8 +1,8 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock
 
 from stock.domain.stock import DailyStockPrice
-from stock.infra.kis.kis_client import KISClient
+from stock.infra.kis.kis_stock_quote_client import KisStockQuoteClient
 from stock.interface.controller.stock_quote_controller import get_daily_stock_prices
 from stock.interface.schema.stock_quote import DailyStockPriceRequest
 from stock.service.stock_quote_service import StockQuoteService
@@ -39,7 +39,7 @@ class FakeResponse:
         }
 
 
-class FakeApiClient:
+class FakeQuoteClient:
     """일봉 서비스 테스트에 사용할 고정 응답 API 클라이언트."""
 
     def __init__(self):
@@ -72,11 +72,11 @@ class FakeApiClient:
 class DailyStockPriceFeatureTest(unittest.TestCase):
     """일봉 조회 서비스, KIS adapter, controller 동작을 검증한다."""
 
-    def test_service_delegates_daily_price_query_to_api_client(self):
+    def test_service_delegates_daily_price_query_to_quote_client(self):
         """서비스가 일봉 조회 요청을 API 클라이언트로 위임하는지 검증한다."""
 
-        api_client = FakeApiClient()
-        service = StockQuoteService(api_client)
+        quote_client = FakeQuoteClient()
+        service = StockQuoteService(quote_client)
 
         result = service.get_daily_stock_prices(
             market="J",
@@ -87,7 +87,7 @@ class DailyStockPriceFeatureTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            api_client.calls,
+            quote_client.calls,
             [("J", "005930", "20240401", "20240430", True)],
         )
         self.assertEqual(result[0].date, "20240401")
@@ -95,16 +95,16 @@ class DailyStockPriceFeatureTest(unittest.TestCase):
     def test_service_keeps_price_history_logic_inside_stock_quote_service(self):
         """가격 이력 조회 책임을 별도 서비스로 노출하지 않는지 검증한다."""
 
-        service = StockQuoteService(FakeApiClient())
+        service = StockQuoteService(FakeQuoteClient())
 
         self.assertFalse(hasattr(service, "price_history_service"))
 
-    @patch("stock.infra.kis.kis_client.api_get")
-    def test_kis_client_calls_daily_chart_endpoint_and_maps_response(self, api_get):
+    def test_kis_client_calls_daily_chart_endpoint_and_maps_response(self):
         """KIS client가 일봉 endpoint 호출 결과를 도메인 객체로 매핑하는지 검증한다."""
 
-        api_get.return_value = FakeResponse()
-        client = KISClient()
+        http_client = Mock()
+        http_client.get.return_value = FakeResponse()
+        client = KisStockQuoteClient(http_client)
 
         result = client.get_daily_stock_prices(
             market="J",
@@ -114,8 +114,8 @@ class DailyStockPriceFeatureTest(unittest.TestCase):
             adjusted_price=True,
         )
 
-        api_get.assert_called_once_with(
-            path="/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice",
+        http_client.get.assert_called_once_with(
+            "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice",
             params={
                 "FID_COND_MRKT_DIV_CODE": "J",
                 "FID_INPUT_ISCD": "005930",
@@ -140,7 +140,7 @@ class DailyStockPriceFeatureTest(unittest.TestCase):
             end_date="20240430",
             adjusted_price=True,
         )
-        service = StockQuoteService(FakeApiClient())
+        service = StockQuoteService(FakeQuoteClient())
 
         response = get_daily_stock_prices(request, stock_quote_service=service)
 
