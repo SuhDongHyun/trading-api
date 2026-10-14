@@ -1,29 +1,11 @@
 from datetime import datetime
-from pydantic import BaseModel, Field, model_validator
+
+from pydantic import Field
+
+from stock.interface.schema.common import ResponseModel
 
 
-class DateRangeRequest(BaseModel):
-    """조회 날짜 범위 요청 모델."""
-
-    start_date: str = Field(
-        default="20260101",
-        pattern=r"^\d{8}$",
-        description="조회 시작일입니다.",
-    )
-    end_date: str = Field(
-        default="20260107",
-        pattern=r"^\d{8}$",
-        description="조회 종료일입니다.",
-    )
-
-    @model_validator(mode="after")
-    def validate_date_range(self):
-        if self.start_date > self.end_date:
-            raise ValueError("start_date는 end_date보다 늦을 수 없습니다.")
-        return self
-
-
-class StockMetaInfoResponse(BaseModel):
+class StockMetaInfoResponse(ResponseModel):
     """단일 종목의 기본 정보 응답 모델."""
 
     market_name: str
@@ -32,7 +14,7 @@ class StockMetaInfoResponse(BaseModel):
     department: str
 
 
-class FearAndGreedIndexResponse(BaseModel):
+class FearAndGreedIndexResponse(ResponseModel):
     """공포탐욕지수 응답 모델."""
 
     value: float
@@ -40,27 +22,15 @@ class FearAndGreedIndexResponse(BaseModel):
     updated_at: datetime
 
 
-class VIXIndexRequest(DateRangeRequest):
-    """VIX 지수 조회 요청 모델."""
-
-    pass
-
-
-class VIXIndexResponse(BaseModel):
-    """VIX 지수 응답 모델."""
+class VIXIndexResponse(ResponseModel):
+    """VIX 시계열 응답 모델."""
 
     date: str
     value: float
 
 
-class VkospiIndexRequest(DateRangeRequest):
-    """VKOSPI 지수 조회 요청 모델."""
-
-    pass
-
-
-class VkospiIndexResponse(BaseModel):
-    """VKOSPI 지수 응답 모델."""
+class VkospiIndexResponse(ResponseModel):
+    """VKOSPI 시계열 응답 모델."""
 
     date: str
     open_price: float
@@ -71,14 +41,8 @@ class VkospiIndexResponse(BaseModel):
     price_diff_rate: float
 
 
-class UsdKrwExchangeRateRequest(DateRangeRequest):
-    """USD/KRW 환율 조회 요청 모델."""
-
-    pass
-
-
-class UsdKrwExchangeRateResponse(BaseModel):
-    """USD/KRW 환율 응답 모델."""
+class OverseasMarketIndexResponse(ResponseModel):
+    """환율과 해외 시장 지수에 공통으로 쓰는 시계열 응답."""
 
     date: str
     open_price: float
@@ -87,63 +51,15 @@ class UsdKrwExchangeRateResponse(BaseModel):
     close_price: float
 
 
-class TreasuryYieldRequest(DateRangeRequest):
-    """국채 수익률 조회 요청 모델."""
-
-    pass
-
-
-class TreasuryYieldResponse(BaseModel):
-    """국채 수익률 응답 모델."""
+class TreasuryYieldResponse(ResponseModel):
+    """국채 수익률 응답은 가격 도메인의 종가를 수익률로 노출한다."""
 
     date: str
-    yield_rate: float
+    yield_rate: float = Field(validation_alias="close_price")
 
 
-class SP500IndexRequest(DateRangeRequest):
-    """S&P 500 지수 조회 요청 모델."""
-
-    pass
-
-
-class SP500IndexResponse(BaseModel):
-    """S&P 500 지수 응답 모델."""
-
-    date: str
-    open_price: float
-    high_price: float
-    low_price: float
-    close_price: float
-
-
-class KospiIndexRequest(DateRangeRequest):
-    """KOSPI 지수 조회 요청 모델."""
-
-    pass
-
-
-class KospiIndexResponse(BaseModel):
-    """KOSPI 지수 응답 모델."""
-
-    date: str
-    open_price: float
-    high_price: float
-    low_price: float
-    close_price: float
-    price_diff: float
-    price_diff_rate: float
-    volume: int
-    trading_value: float
-
-
-class KosdaqIndexRequest(DateRangeRequest):
-    """KOSDAQ 지수 조회 요청 모델."""
-
-    pass
-
-
-class KosdaqIndexResponse(BaseModel):
-    """KOSDAQ 지수 응답 모델."""
+class DomesticMarketIndexResponse(ResponseModel):
+    """KOSPI와 KOSDAQ에 공통으로 쓰는 국내 지수 시계열 응답."""
 
     date: str
     open_price: float

@@ -1,7 +1,7 @@
-from pydantic import BaseModel
+from stock.interface.schema.common import ResponseModel
 
 
-class PositionResponse(BaseModel):
+class PositionResponse(ResponseModel):
     """보유 종목 한 건의 API 응답 스키마."""
 
     code: str
@@ -11,7 +11,7 @@ class PositionResponse(BaseModel):
     unrealized_return: float
 
 
-class AccountResponse(BaseModel):
+class AccountResponse(ResponseModel):
     """계좌 현금과 평가 손익의 API 응답 스키마."""
 
     cash_balance: float
@@ -19,7 +19,7 @@ class AccountResponse(BaseModel):
     total_return: float
 
 
-class AccountSummaryResponse(BaseModel):
+class AccountSummaryResponse(ResponseModel):
     """보유 종목 목록과 계좌 요약을 묶은 API 응답 스키마."""
 
     positions: list[PositionResponse]

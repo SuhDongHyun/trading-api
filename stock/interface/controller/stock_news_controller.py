@@ -19,19 +19,10 @@ def get_stock_news(
         Provide[Container.stock_news_service]
     ),
 ):
-    """뉴스 조회 요청을 처리하고 응답 스키마로 변환한다."""
-
     news_list = stock_news_service.get_total_news(
         code=request.code,
         search_date=request.search_date,
         search_time=request.search_time,
     )
 
-    return [
-        StockNewsResponse(
-            title=news.title,
-            source=news.source,
-            published_at=news.published_at,
-        )
-        for news in news_list
-    ]
+    return [StockNewsResponse.model_validate(news) for news in news_list]
