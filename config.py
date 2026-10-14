@@ -48,7 +48,7 @@ class KISSetting(BaseModel):
     """한국투자증권 Open API 접속 정보 묶음."""
 
     base_url: str
-    account_num: str
+    account_num: str = ""
     account_code: str
     appkey: str
     appsecret: str
@@ -74,7 +74,7 @@ class AppSettings(BaseSettings):
     krx: KRXSetting
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=Path(__file__).parent / ".env",
         env_file_encoding="utf-8",
         env_nested_delimiter="__",
         case_sensitive=False,
