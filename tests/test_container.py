@@ -1,10 +1,10 @@
-from container import Container
+import main
 
 
 def test_kis_transports_are_shared_across_all_adapters():
     """토큰과 appkey rate limit이 모든 KIS 어댑터에서 공유되는지 보장한다."""
 
-    container = Container()
+    container = main.container
     account_service = container.account_service()
     quote_service = container.stock_quote_service()
     news_service = container.stock_news_service()

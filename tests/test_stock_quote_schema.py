@@ -76,19 +76,19 @@ class StockQuoteSchemaTest(unittest.TestCase):
         for request_class in request_classes:
             self.assertNotIn("period", request_class.model_fields)
 
-    def test_window_fields_reject_values_below_one(self):
-        """window 계열 파라미터는 1 이상이어야 한다."""
+    def test_window_fields_reject_values_below_their_minimum(self):
+        """EMA 창은 2 이상, 나머지 계산 창은 1 이상이어야 한다."""
 
         invalid_cases = [
             (MovingAverageRequest, {"window": 0}),
             (RsiRequest, {"rsi_window": 0}),
             (RsiSignalRequest, {"rsi_window": 0}),
-            (RsiSignalRequest, {"ema_window": 0}),
-            (MacdRequest, {"ema_short_window": 0}),
-            (MacdRequest, {"ema_long_window": 0}),
-            (MacdSignalRequest, {"ema_short_window": 0}),
-            (MacdSignalRequest, {"ema_long_window": 0}),
-            (MacdSignalRequest, {"ema_window": 0}),
+            (RsiSignalRequest, {"ema_window": 1}),
+            (MacdRequest, {"ema_short_window": 1}),
+            (MacdRequest, {"ema_long_window": 1}),
+            (MacdSignalRequest, {"ema_short_window": 1}),
+            (MacdSignalRequest, {"ema_long_window": 1}),
+            (MacdSignalRequest, {"ema_window": 1}),
         ]
 
         for request_class, kwargs in invalid_cases:

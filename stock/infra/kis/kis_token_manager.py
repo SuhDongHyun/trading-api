@@ -5,6 +5,7 @@ from typing import Callable
 import requests
 
 from config import KISSetting
+from stock.domain.exceptions import ExternalApiError
 
 TOKEN_EXPIRY_BUFFER_SECONDS = 60
 
@@ -41,13 +42,19 @@ class KisTokenManager:
 
         token = data.get("access_token")
         if not token:
-            raise RuntimeError(f"토큰 발급 실패: {data}")
+            raise ExternalApiError(
+                "KIS 토큰 발급에 실패했습니다.",
+                diagnostic=(
+                    "KIS token issue failed "
+                    f"error_code={data.get('error_code', data.get('msg_cd'))} "
+                    "error_description="
+                    f"{data.get('error_description', data.get('msg1'))}"
+                ),
+            )
 
-        expires_in = data.get("expires_in")
-        if expires_in is None:
-            raise RuntimeError(f"토큰 유효기간 누락: {data}")
-
-        exp_epoch = self._clock() + int(expires_in) - TOKEN_EXPIRY_BUFFER_SECONDS
+        exp_epoch = (
+            self._clock() + int(data["expires_in"]) - TOKEN_EXPIRY_BUFFER_SECONDS
+        )
         return token, exp_epoch
 
     def get_access_token(self, force_refresh: bool = False) -> str:

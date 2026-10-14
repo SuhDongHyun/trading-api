@@ -2,7 +2,10 @@ import threading
 import time
 from unittest.mock import Mock
 
+import pytest
+
 from config import KISSetting
+from stock.domain.exceptions import ExternalApiError
 from stock.infra.kis.kis_token_manager import (
     TOKEN_EXPIRY_BUFFER_SECONDS,
     KisTokenManager,
@@ -75,3 +78,22 @@ def test_issue_access_token_uses_expires_in_with_safety_buffer():
         },
         timeout=10,
     )
+
+
+def test_issue_access_token_error_diagnostic_keeps_kis_error_fields():
+    response = Mock()
+    response.json.return_value = {
+        "error_code": "EGW00133",
+        "error_description": "token issue limit",
+    }
+    response.raise_for_status.return_value = None
+    manager = KisTokenManager(
+        make_settings(), post=Mock(return_value=response), clock=lambda: 1000.0
+    )
+
+    with pytest.raises(ExternalApiError) as error:
+        manager._issue_access_token()
+
+    assert error.value.status_code == 502
+    assert "EGW00133" in error.value.diagnostic
+    assert "token issue limit" in error.value.diagnostic

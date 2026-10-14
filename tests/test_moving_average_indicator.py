@@ -139,20 +139,20 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
         self.assertEqual(response[0].date, "20240403")
         self.assertEqual(response[0].moving_average, 11.0)
 
-    def test_service_rejects_non_positive_window(self):
-        """이동평균 window가 양수가 아니면 예외가 발생하는지 검증한다."""
+    def test_service_returns_empty_result_when_available_history_is_short(self):
+        """부분 이력은 정의할 수 있는 이동평균이 없어 빈 결과를 반환한다."""
 
         service = StockQuoteService(FakeQuoteClient())
 
-        with self.assertRaises(ValueError):
-            service.get_moving_average(
-                market="J",
-                code="005930",
-                start_date="20240403",
-                end_date="20240404",
-                adjusted_price=True,
-                window=0,
-            )
+        result = service.get_moving_average(
+            market="J",
+            code="005930",
+            start_date="20240403",
+            end_date="20240404",
+            window=5,
+        )
+
+        self.assertEqual(result, [])
 
     def test_macd_warmup_uses_current_price_as_price_scale(self):
         """MACD EMA warmup은 RSI 범위가 아닌 현재가 스케일로 seed error를 잡는다."""

@@ -116,7 +116,7 @@ class RsiSignalRequest(RsiRequest):
     """RSI 신호 계산 요청 파라미터."""
 
     ema_window: int = Field(
-        default=9, ge=1, description="RSI signal EMA 계산 기간입니다."
+        default=9, ge=2, description="RSI signal EMA 계산 기간입니다."
     )
 
 
@@ -132,10 +132,10 @@ class MacdRequest(HistoricalStockQuoteRequest):
     """MACD 계산 요청 파라미터."""
 
     ema_short_window: int = Field(
-        default=12, ge=1, description="MACD 단기 EMA 계산 기간입니다."
+        default=12, ge=2, description="MACD 단기 EMA 계산 기간입니다."
     )
     ema_long_window: int = Field(
-        default=26, ge=1, description="MACD 장기 EMA 계산 기간입니다."
+        default=26, ge=2, description="MACD 장기 EMA 계산 기간입니다."
     )
 
 
@@ -150,7 +150,7 @@ class MacdSignalRequest(MacdRequest):
     """MACD 신호 계산 요청 파라미터."""
 
     ema_window: int = Field(
-        default=9, ge=1, description="MACD signal EMA 계산 기간입니다."
+        default=9, ge=2, description="MACD signal EMA 계산 기간입니다."
     )
 
 
