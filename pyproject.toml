@@ -1,7 +1,7 @@
 [project]
 name = "trading-api"
 version = "0.1.0"
-description = "Add your description here"
+description = "Read-only stock and market data API built with FastAPI and KIS Open API."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -11,10 +11,8 @@ dependencies = [
     "fear-and-greed>=0.4",
     "finance-datareader>=0.9.202",
     "fredapi>=0.5.2",
-    "matplotlib>=3.10.9",
-    "nbformat>=5.10.4",
+    "numpy>=2.0.0",
     "pandas>=3.0.2",
-    "plotly>=6.7.0",
     "pydantic-settings>=2.13.1",
     "pyrate-limiter>=4.1.0",
     "pyyaml>=6.0.3",
@@ -24,6 +22,12 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "pytest>=9.0.3",
     "ruff>=0.15.9",
+]
+notebook = [
+    "matplotlib>=3.10.9",
+    "nbformat>=5.10.4",
+    "plotly>=6.7.0",
 ]
