@@ -1,7 +1,9 @@
 """여러 기술적 지표 계산에서 공유하는 일봉 보조 함수."""
 
 import math
+from itertools import accumulate
 
+from stock.domain.indicator import Signal
 from stock.service.indicator.date_ranges import (
     calculate_daily_fetch_start_date,
     normalize_daily_end_date,
@@ -11,6 +13,34 @@ from stock.service.indicator.date_ranges import (
 EMA_WARMUP_TOLERANCE = 0.0001
 MACD_PRICE_SEED_ERROR_RATIO = 0.2
 MIN_EMA_SEED_ERROR = 100.0
+
+
+def calculate_ema_values(
+    values: list[float], ema_window: int, start_index: int = 0
+) -> list[float]:
+    """EMA 재귀식을 한 곳에서 적용하고 지정한 warm-up 구간을 제외한다."""
+
+    ema_alpha = 2 / (ema_window + 1)
+    values_with_warmup = accumulate(
+        values,
+        lambda ema, value: value * ema_alpha + ema * (1 - ema_alpha),
+    )
+    return list(values_with_warmup)[start_index:]
+
+
+def crossing_signal(
+    previous_value: float,
+    current_value: float,
+    previous_average: float,
+    current_average: float,
+) -> Signal:
+    """값 계열이 EMA를 상향·하향 돌파할 때만 매수·매도 신호를 낸다."""
+
+    if previous_value < previous_average and current_value > current_average:
+        return "buy"
+    if previous_value > previous_average and current_value < current_average:
+        return "sell"
+    return "neutral"
 
 
 def calculate_ema_warmup_days(

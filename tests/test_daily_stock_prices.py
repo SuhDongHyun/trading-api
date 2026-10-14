@@ -4,7 +4,7 @@ from unittest.mock import Mock
 from stock.domain.stock import DailyStockPrice
 from stock.infra.kis.kis_stock_quote_client import KisStockQuoteClient
 from stock.interface.controller.stock_quote_controller import get_daily_stock_prices
-from stock.interface.schema.stock_quote import DailyStockPriceRequest
+from stock.interface.schema.stock_quote import HistoricalStockQuoteRequest
 from stock.service.stock_quote_service import StockQuoteService
 
 
@@ -133,7 +133,7 @@ class DailyStockPriceFeatureTest(unittest.TestCase):
     def test_controller_returns_daily_price_response_schema(self):
         """Controller가 일봉 도메인 결과를 응답 스키마로 변환하는지 검증한다."""
 
-        request = DailyStockPriceRequest(
+        request = HistoricalStockQuoteRequest(
             market="J",
             code="005930",
             start_date="20240401",

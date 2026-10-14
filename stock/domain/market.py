@@ -1,5 +1,17 @@
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
+
+
+class TreasuryYieldMaturity(str, Enum):
+    """국가와 만기를 함께 식별하는 국채 수익률 조회 구분자."""
+
+    KOREA_1Y = "korea-1y"
+    KOREA_3Y = "korea-3y"
+    KOREA_5Y = "korea-5y"
+    KOREA_10Y = "korea-10y"
+    US_1Y = "us-1y"
+    US_10Y = "us-10y"
 
 
 @dataclass

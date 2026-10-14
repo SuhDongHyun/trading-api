@@ -1,11 +1,9 @@
-from itertools import chain
-
 from stock.domain.port.stock_quote_client import StockQuoteClient
 from stock.domain.stock import DailyStockPrice, StockInfo
 from stock.infra.kis.kis_http_client import KisHttpClient
 from stock.infra.kis.kis_util import (
     DAILY_PERIOD_CODE,
-    split_date_range,
+    fetch_daily_chart_prices,
     to_float,
     to_int,
 )
@@ -75,8 +73,7 @@ class KisStockQuoteClient(StockQuoteClient):
     ) -> list[DailyStockPrice]:
         """각 KIS 요청이 최대 100건을 반환하므로 구간별 조회 결과를 합친다."""
 
-        bodies = []
-        for chunk_start, chunk_end in split_date_range(start_date, end_date):
+        def fetch_page(chunk_start: str, chunk_end: str):
             path = "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
             params = {
                 "FID_COND_MRKT_DIV_CODE": market,
@@ -87,9 +84,9 @@ class KisStockQuoteClient(StockQuoteClient):
                 "FID_ORG_ADJ_PRC": "0" if adjusted_price else "1",
             }
             resp = self._http_client.get(path, params=params, tr_id="FHKST03010100")
-            bodies.append(resp.json())
+            return resp.json()
 
-        prices = list(chain.from_iterable(body["output2"][::-1] for body in bodies))
+        prices = fetch_daily_chart_prices(start_date, end_date, fetch_page)
         return [
             DailyStockPrice(
                 date=price["stck_bsop_date"],

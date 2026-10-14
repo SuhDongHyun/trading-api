@@ -1,7 +1,10 @@
-from pydantic import BaseModel, Field, model_validator
+from pydantic import Field
+
+from stock.domain.indicator import Signal
+from stock.interface.schema.common import DateRangeRequest, RequestModel, ResponseModel
 
 
-class StockQuoteRequest(BaseModel):
+class StockQuoteRequest(RequestModel):
     """주식 시세 조회 공통 요청 모델."""
 
     market: str = Field(
@@ -12,35 +15,13 @@ class StockQuoteRequest(BaseModel):
     )
 
 
-class HistoricalStockQuoteRequest(StockQuoteRequest):
+class HistoricalStockQuoteRequest(StockQuoteRequest, DateRangeRequest):
     """기간별 주식 시세 조회 공통 요청 모델."""
 
-    start_date: str = Field(
-        default="20260101",
-        pattern=r"^\d{8}$",
-        description="조회 시작일입니다.",
-    )
-    end_date: str = Field(
-        default="20260107",
-        pattern=r"^\d{8}$",
-        description="조회 종료일입니다.",
-    )
     adjusted_price: bool = Field(default=True, description="수정주가 반영 여부입니다.")
 
-    @model_validator(mode="after")
-    def validate_date_range(self):
-        if self.start_date > self.end_date:
-            raise ValueError("start_date는 end_date보다 늦을 수 없습니다.")
-        return self
 
-
-class StockInfoRequest(StockQuoteRequest):
-    """현재가 조회에 필요한 시장 구분과 종목 코드."""
-
-    pass
-
-
-class StockInfoResponse(BaseModel):
+class StockInfoResponse(ResponseModel):
     """현재가 조회 API 응답 스키마."""
 
     market_name: str
@@ -65,13 +46,7 @@ class StockInfoResponse(BaseModel):
     price_diff_rate: float
 
 
-class DailyStockPriceRequest(HistoricalStockQuoteRequest):
-    """일봉 조회 요청 파라미터."""
-
-    pass
-
-
-class DailyStockPriceResponse(BaseModel):
+class DailyStockPriceResponse(ResponseModel):
     """특정 거래일의 일봉 가격 응답."""
 
     date: str
@@ -92,11 +67,11 @@ class MovingAverageRequest(HistoricalStockQuoteRequest):
     window: int = Field(default=20, ge=1, description="이동평균 계산 기간입니다.")
 
 
-class MovingAverageResponse(BaseModel):
+class MovingAverageResponse(ResponseModel):
     """특정 날짜의 가격과 이동평균 값 응답."""
 
     date: str
-    moving_average: float
+    moving_average: float = Field(validation_alias="value")
 
 
 class RsiRequest(HistoricalStockQuoteRequest):
@@ -105,11 +80,11 @@ class RsiRequest(HistoricalStockQuoteRequest):
     rsi_window: int = Field(default=14, ge=1, description="RSI 계산 기간입니다.")
 
 
-class RsiResponse(BaseModel):
+class RsiResponse(ResponseModel):
     """특정 날짜의 RSI 값 응답."""
 
     date: str
-    rsi: float
+    rsi: float = Field(validation_alias="value")
 
 
 class RsiSignalRequest(RsiRequest):
@@ -120,12 +95,12 @@ class RsiSignalRequest(RsiRequest):
     )
 
 
-class RsiSignalResponse(BaseModel):
+class RsiSignalResponse(ResponseModel):
     """특정 날짜의 RSI EMA 지표 값과 신호 응답."""
 
     date: str
-    rsi_ema: float
-    signal: str
+    rsi_ema: float = Field(validation_alias="value")
+    signal: Signal
 
 
 class MacdRequest(HistoricalStockQuoteRequest):
@@ -139,24 +114,24 @@ class MacdRequest(HistoricalStockQuoteRequest):
     )
 
 
-class MacdResponse(BaseModel):
-    """특정 날짜의 MACD 값과 신호 응답."""
-
-    date: str
-    macd: float
-
-
 class MacdSignalRequest(MacdRequest):
-    """MACD 신호 계산 요청 파라미터."""
+    """MACD 신호 계산에 필요한 signal EMA 창을 받는다."""
 
     ema_window: int = Field(
         default=9, ge=2, description="MACD signal EMA 계산 기간입니다."
     )
 
 
-class MacdSignalResponse(BaseModel):
+class MacdResponse(ResponseModel):
+    """특정 날짜의 MACD 값 응답."""
+
+    date: str
+    macd: float = Field(validation_alias="value")
+
+
+class MacdSignalResponse(ResponseModel):
     """특정 날짜의 MACD EMA 지표 값과 신호 응답."""
 
     date: str
-    macd_ema: float
-    signal: str
+    macd_ema: float = Field(validation_alias="value")
+    signal: Signal

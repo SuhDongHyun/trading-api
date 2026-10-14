@@ -1,4 +1,8 @@
 from dataclasses import dataclass
+from typing import Literal
+
+
+Signal = Literal["buy", "sell", "neutral"]
 
 
 @dataclass
@@ -23,7 +27,7 @@ class RsiSignal:
 
     date: str
     value: float
-    signal: str
+    signal: Signal
 
 
 @dataclass
@@ -40,4 +44,4 @@ class MacdSignal:
 
     date: str
     value: float
-    signal: str
+    signal: Signal

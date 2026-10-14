@@ -1,10 +1,10 @@
 """이동평균 지표 계산."""
 
 import numpy as np
-from itertools import accumulate
 
 from stock.domain.indicator import Macd, MacdSignal, MovingAverage
 from stock.domain.stock import DailyStockPrice
+from stock.service.indicator.common import calculate_ema_values, crossing_signal
 
 
 def calculate_moving_average_values(
@@ -12,6 +12,7 @@ def calculate_moving_average_values(
     window: int,
 ) -> list[MovingAverage]:
     """조회한 가격 목록에서 요청 구간만 잘라 이동평균 값을 붙인다."""
+
     sorted_prices = sorted(prices, key=lambda price: price.date)
     return [
         MovingAverage(
@@ -32,16 +33,14 @@ def calculate_exponential_moving_average_values(
     ema_window: int,
     ema_warmup_days: int,
 ) -> list[MovingAverage]:
-    """조회한 가격 목록에서 요청 구간만 잘라 지수 이동평균 값을 붙인다."""
-    ema_alpha = 2 / (ema_window + 1)
+    """공통 EMA 재귀식으로 가격의 지수 이동평균을 계산한다."""
 
     sorted_prices = sorted(prices, key=lambda price: price.date)
-    clipped_ema_values = list(
-        accumulate(
-            (price.close_price for price in sorted_prices),
-            lambda ema, price: price * ema_alpha + ema * (1 - ema_alpha),
-        )
-    )[ema_warmup_days - 1 :]
+    clipped_ema_values = calculate_ema_values(
+        [price.close_price for price in sorted_prices],
+        ema_window,
+        start_index=ema_warmup_days - 1,
+    )
     clipped_prices = sorted_prices[ema_warmup_days - 1 :]
 
     return [
@@ -57,6 +56,7 @@ def calculate_macd_values(
     ema_warmup_days: int,
 ) -> list[Macd]:
     """MACD 지표 값을 계산하여 반환한다."""
+
     ema_short = calculate_exponential_moving_average_values(
         prices, ema_short_window, ema_warmup_days
     )
@@ -73,17 +73,15 @@ def calculate_macd_values(
 def calculate_macd_signals(
     macd_values: list[Macd], ema_window: int, ema_warmup_days: int
 ) -> list[MacdSignal]:
-    """MACD EMA 지표 값에 과매수·과매도 신호를 붙여 반환한다."""
-    ema_alpha = 2 / (ema_window + 1)
-    warmup_start = ema_warmup_days - 2
+    """MACD EMA 지표 값에 교차 신호를 붙여 반환한다."""
 
+    warmup_start = ema_warmup_days - 2
     sorted_macd_values = sorted(macd_values, key=lambda macd: macd.date)
-    clipped_macd_signals = list(
-        accumulate(
-            (macd.value for macd in sorted_macd_values),
-            lambda signal, macd: macd * ema_alpha + signal * (1 - ema_alpha),
-        )
-    )[warmup_start:]
+    clipped_macd_signals = calculate_ema_values(
+        [macd.value for macd in sorted_macd_values],
+        ema_window,
+        start_index=warmup_start,
+    )
     clipped_macd_values = sorted_macd_values[warmup_start:]
 
     return [
@@ -101,14 +99,3 @@ def calculate_macd_signals(
             clipped_macd_signals[1:],
         )
     ]
-
-
-def crossing_signal(
-    prev_macd: float, curr_macd: float, prev_signal: float, curr_signal: float
-) -> str:
-    """MACD가 기준선을 상향/하향 돌파했는지에 따라 매수/매도 신호를 반환한다."""
-    if prev_macd < prev_signal and curr_macd > curr_signal:
-        return "buy"
-    if prev_macd > prev_signal and curr_macd < curr_signal:
-        return "sell"
-    return "neutral"

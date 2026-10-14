@@ -3,7 +3,6 @@ import unittest
 from pydantic import ValidationError
 
 from stock.interface.schema.stock_quote import (
-    DailyStockPriceRequest,
     HistoricalStockQuoteRequest,
     MacdRequest,
     MacdSignalRequest,
@@ -11,7 +10,6 @@ from stock.interface.schema.stock_quote import (
     RsiRequest,
     RsiSignalRequest,
     StockQuoteRequest,
-    StockInfoRequest,
 )
 
 
@@ -21,10 +19,7 @@ class StockQuoteSchemaTest(unittest.TestCase):
     def test_request_schemas_inherit_common_field_models(self):
         """요청 모델은 공통 필드 모델을 상속한다."""
 
-        self.assertTrue(issubclass(StockInfoRequest, StockQuoteRequest))
-
         historical_request_classes = [
-            DailyStockPriceRequest,
             MovingAverageRequest,
             RsiRequest,
             RsiSignalRequest,
@@ -32,6 +27,7 @@ class StockQuoteSchemaTest(unittest.TestCase):
             MacdSignalRequest,
         ]
 
+        self.assertTrue(issubclass(HistoricalStockQuoteRequest, StockQuoteRequest))
         for request_class in historical_request_classes:
             self.assertTrue(issubclass(request_class, HistoricalStockQuoteRequest))
 
@@ -42,8 +38,8 @@ class StockQuoteSchemaTest(unittest.TestCase):
         """시장, 종목, 조회 기간 기본값이 자동으로 채워진다."""
 
         request_classes = [
-            StockInfoRequest,
-            DailyStockPriceRequest,
+            StockQuoteRequest,
+            HistoricalStockQuoteRequest,
             MovingAverageRequest,
             RsiRequest,
             RsiSignalRequest,
@@ -52,20 +48,23 @@ class StockQuoteSchemaTest(unittest.TestCase):
         ]
 
         for request_class in request_classes:
-            request = request_class()
+            request = (
+                request_class(start_date="20260401", end_date="20260407")
+                if issubclass(request_class, HistoricalStockQuoteRequest)
+                else request_class()
+            )
 
             self.assertEqual(request.market, "J")
             self.assertEqual(request.code, "005930")
 
             if hasattr(request, "start_date"):
-                self.assertEqual(request.start_date, "20260101")
-                self.assertEqual(request.end_date, "20260107")
+                self.assertEqual(request.start_date, "20260401")
+                self.assertEqual(request.end_date, "20260407")
 
     def test_historical_request_schemas_do_not_expose_period(self):
         """과거 시세 요청은 일봉으로 고정되어 period 필드를 노출하지 않는다."""
 
         request_classes = [
-            DailyStockPriceRequest,
             MovingAverageRequest,
             RsiRequest,
             RsiSignalRequest,
@@ -99,8 +98,8 @@ class StockQuoteSchemaTest(unittest.TestCase):
         """요청 필드는 OpenAPI 문서용 description을 가진다."""
 
         request_classes = [
-            StockInfoRequest,
-            DailyStockPriceRequest,
+            StockQuoteRequest,
+            HistoricalStockQuoteRequest,
             MovingAverageRequest,
             RsiRequest,
             RsiSignalRequest,
@@ -116,7 +115,7 @@ class StockQuoteSchemaTest(unittest.TestCase):
         """조회 날짜는 YYYYMMDD 형식이며 시작일이 종료일보다 늦을 수 없다."""
 
         with self.assertRaises(ValidationError):
-            HistoricalStockQuoteRequest(start_date="2026-01-01")
+            HistoricalStockQuoteRequest(start_date="2026-01-01", end_date="20260110")
 
         with self.assertRaisesRegex(
             ValidationError,
@@ -126,6 +125,16 @@ class StockQuoteSchemaTest(unittest.TestCase):
                 start_date="20260108",
                 end_date="20260107",
             )
+
+    def test_requests_reject_extra_fields_including_removed_period(self):
+        with self.assertRaises(ValidationError):
+            HistoricalStockQuoteRequest(
+                start_date="20260401", end_date="20260407", period="W"
+            )
+
+    def test_historical_dates_are_required(self):
+        with self.assertRaises(ValidationError):
+            HistoricalStockQuoteRequest()
 
 
 if __name__ == "__main__":

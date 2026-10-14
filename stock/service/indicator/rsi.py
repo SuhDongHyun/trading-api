@@ -1,17 +1,18 @@
 """RSI 지표와 RSI 기반 신호 계산."""
 
 import pandas as pd
-from itertools import accumulate
 
 from stock.domain.indicator import Rsi, RsiSignal
 from stock.domain.stock import DailyStockPrice
+from stock.service.indicator.common import calculate_ema_values, crossing_signal
 
 
 def calculate_rsi_values(
     prices: list[DailyStockPrice],
     rsi_period: int,
 ) -> list[Rsi]:
-    """조회한 가격 목록에서 요청 구간만 잘라 RSI 값을 붙인다."""
+    """조회한 가격 목록에서 요청 구간만 잘라 단순 이동평균 RSI를 계산한다."""
+
     sorted_prices = sorted(prices, key=lambda price: price.date)
     sorted_dates = [price.date for price in sorted_prices]
     close = pd.Series([price.close_price for price in sorted_prices], dtype=float)
@@ -34,17 +35,15 @@ def calculate_rsi_values(
 def calculate_rsi_signals(
     rsi_values: list[Rsi], ema_window: int, ema_warmup_days: int
 ) -> list[RsiSignal]:
-    """RSI EMA 지표 값에 과매수·과매도 신호를 붙여 반환한다."""
-    ema_alpha = 2 / (ema_window + 1)
-    warmup_start = ema_warmup_days - 2
+    """RSI EMA 지표 값에 교차 신호를 붙여 반환한다."""
 
+    warmup_start = ema_warmup_days - 2
     sorted_rsi_values = sorted(rsi_values, key=lambda rsi: rsi.date)
-    clipped_rsi_signals = list(
-        accumulate(
-            (rsi.value for rsi in sorted_rsi_values),
-            lambda signal, rsi: rsi * ema_alpha + signal * (1 - ema_alpha),
-        )
-    )[warmup_start:]
+    clipped_rsi_signals = calculate_ema_values(
+        [rsi.value for rsi in sorted_rsi_values],
+        ema_window,
+        start_index=warmup_start,
+    )
     clipped_rsi_values = sorted_rsi_values[warmup_start:]
 
     return [
@@ -62,14 +61,3 @@ def calculate_rsi_signals(
             clipped_rsi_signals[1:],
         )
     ]
-
-
-def crossing_signal(
-    prev_rsi: float, curr_rsi: float, prev_signal: float, curr_signal: float
-) -> str:
-    """RSI가 기준선을 상향/하향 돌파했는지에 따라 매수/매도 신호를 반환한다."""
-    if prev_rsi < prev_signal and curr_rsi > curr_signal:
-        return "buy"
-    if prev_rsi > prev_signal and curr_rsi < curr_signal:
-        return "sell"
-    return "neutral"
