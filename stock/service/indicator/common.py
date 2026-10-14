@@ -55,11 +55,16 @@ def calculate_ema_warmup_days(
     )
 
 
-def calculate_price_ema_seed_error(reference_price: float | str) -> float:
-    """가격 EMA warmup에 사용할 seed error 상한을 현재가 스케일로 계산한다."""
+def calculate_price_ema_seed_error(reference_price: float) -> float:
+    """요청 구간 종가 스케일의 20%를 seed 오차 상한으로 둔다.
 
-    normalized_price = float(reference_price or 0.0)
-    return max(MIN_EMA_SEED_ERROR, abs(normalized_price) * MACD_PRICE_SEED_ERROR_RATIO)
+    수정주가 설정을 포함해 실제 EMA에 사용할 동일 시계열의 가격을 기준으로 한다.
+    """
+
+    return max(
+        MIN_EMA_SEED_ERROR,
+        abs(reference_price) * MACD_PRICE_SEED_ERROR_RATIO,
+    )
 
 
 def resolve_base_indicator_date_range(

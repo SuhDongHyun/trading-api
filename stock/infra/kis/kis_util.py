@@ -18,6 +18,14 @@ def to_float(value: str | int | float | None) -> float:
     return float(value)
 
 
+def to_optional_float(value: str | int | float | None) -> float | None:
+    """KIS 응답에서 값이 빠진 선택 숫자 필드를 None으로 보존한다."""
+
+    if value in (None, ""):
+        return None
+    return float(value)
+
+
 def to_int(value: str | int | float | None) -> int:
     """KIS 응답의 빈 문자열 숫자 필드를 int 기본값으로 정규화한다."""
 

@@ -7,7 +7,7 @@ class Position:
 
     code: str
     name: str
-    quantity: float
+    quantity: int
     unrealized_pnl: float
     unrealized_return: float
 

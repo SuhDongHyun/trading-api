@@ -1,5 +1,7 @@
+from datetime import datetime
 from unittest.mock import Mock
 
+from common.min_interval_throttle import MinIntervalThrottle
 from stock.domain.port.domestic_market_index_client import DomesticMarketIndexClient
 from stock.domain.port.fear_greed_client import FearGreedClient
 from stock.domain.port.korea_stock_list_client import KoreaStockListClient
@@ -20,7 +22,7 @@ from stock.infra.kis.kis_overseas_market_index_client import (
     KisOverseasMarketIndexClient,
 )
 from stock.infra.kis.kis_stock_quote_client import KisStockQuoteClient
-from stock.infra.krx.krx_client import KRXClient
+from stock.infra.krx.krx_client import KRX_API_MIN_INTERVAL_SECONDS, KRXClient
 from stock.infra.krx import krx_client
 
 
@@ -70,3 +72,50 @@ def test_krx_client_requests_derivative_index_daily_prices(monkeypatch):
         "IDX_NM": "코스피 200 변동성지수",
         "CLSPRC_IDX": "19.43",
     }
+
+
+def test_krx_client_throttles_sequential_vkospi_requests(monkeypatch):
+    """거래일별 VKOSPI 조회 사이에 짧은 간격을 유지한다."""
+
+    calendar = Mock()
+    calendar.sessions_in_range.return_value = [
+        datetime(2026, 6, 25),
+        datetime(2026, 6, 26),
+    ]
+    monkeypatch.setattr(krx_client, "get_krx_calendar", lambda: calendar)
+
+    def make_response(date: str, close: str):
+        response = Mock()
+        response.json.return_value = {
+            "OutBlock_1": [
+                {
+                    "BAS_DD": date,
+                    "IDX_NM": "코스피 200 변동성지수",
+                    "OPNPRC_IDX": "19.0",
+                    "HGPRC_IDX": "20.0",
+                    "LWPRC_IDX": "18.0",
+                    "CLSPRC_IDX": close,
+                    "CMPPREVDD_IDX": "0.5",
+                    "FLUC_RT": "2.5",
+                }
+            ]
+        }
+        return response
+
+    requests_get = Mock(
+        side_effect=[make_response("20260625", "19.5"), make_response("20260626", "20.0")]
+    )
+    monkeypatch.setattr(krx_client.requests, "get", requests_get)
+    throttle = Mock(spec=MinIntervalThrottle)
+    client = KRXClient(api_key="test-key", min_interval_throttle=throttle)
+
+    result = client.get_vkospi_index("20260625", "20260626")
+
+    assert [item.date for item in result] == ["20260625", "20260626"]
+    assert [item.close_price for item in result] == [19.5, 20.0]
+    assert [call.kwargs["params"] for call in requests_get.call_args_list] == [
+        {"basDd": "20260625"},
+        {"basDd": "20260626"},
+    ]
+    assert KRX_API_MIN_INTERVAL_SECONDS == 0.1
+    assert throttle.acquire.call_count == 2

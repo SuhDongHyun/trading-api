@@ -1,9 +1,11 @@
+import math
 import unittest
 from unittest.mock import patch
 
 from stock.domain.stock import DailyStockPrice
 from stock.interface.controller.stock_quote_controller import get_rsi, get_rsi_signal
 from stock.interface.schema.stock_quote import RsiRequest, RsiSignalRequest
+from stock.service.indicator.rsi import calculate_rsi_values
 from stock.service.stock_quote_service import StockQuoteService
 
 
@@ -86,6 +88,34 @@ class HistoricalRsiQuoteClient(FakeQuoteClient):
 
 class RsiIndicatorFeatureTest(unittest.TestCase):
     """RSI 지표 계산과 controller 응답 변환을 검증한다."""
+
+    def test_rsi_returns_100_when_the_window_has_no_losses(self):
+        """평균 손실이 0인 상승 구간에서 RSI 100을 반환한다."""
+
+        quote_client = FakeQuoteClient()
+        prices = [
+            quote_client._price(f"2024040{index}", float(index))
+            for index in range(1, 5)
+        ]
+
+        result = calculate_rsi_values(prices, rsi_period=3)
+
+        self.assertEqual(result[0].value, 100.0)
+        self.assertTrue(math.isfinite(result[0].value))
+
+    def test_rsi_returns_50_when_the_window_has_no_price_movement(self):
+        """평균 상승과 평균 손실이 모두 0인 구간을 중립값 50으로 처리한다."""
+
+        quote_client = FakeQuoteClient()
+        prices = [
+            quote_client._price(f"2024040{index}", 10.0)
+            for index in range(1, 5)
+        ]
+
+        result = calculate_rsi_values(prices, rsi_period=3)
+
+        self.assertEqual(result[0].value, 50.0)
+        self.assertTrue(math.isfinite(result[0].value))
 
     def test_service_calculates_rsi_from_daily_close_prices(self):
         """서비스가 일봉 종가로 RSI 값을 계산하는지 검증한다."""

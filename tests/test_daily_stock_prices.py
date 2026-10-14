@@ -4,6 +4,7 @@ from unittest.mock import Mock
 from stock.domain.stock import DailyStockPrice
 from stock.infra.kis.kis_stock_quote_client import KisStockQuoteClient
 from stock.interface.controller.stock_quote_controller import get_daily_stock_prices
+from stock.interface.schema.stock_quote import StockInfoResponse
 from stock.interface.schema.stock_quote import HistoricalStockQuoteRequest
 from stock.service.stock_quote_service import StockQuoteService
 
@@ -71,6 +72,52 @@ class FakeQuoteClient:
 
 class DailyStockPriceFeatureTest(unittest.TestCase):
     """일봉 조회 서비스, KIS adapter, controller 동작을 검증한다."""
+
+    def test_kis_client_maps_stock_info_code_and_normalizes_numbers(self):
+        """현재가 응답은 요청 종목 코드를 보존하고 숫자 필드를 정규화한다."""
+
+        info = {
+            "rprs_mrkt_kor_name": "KOSPI",
+            "bstp_cls_code": "0001",
+            "prdt_abrv_name": "삼성전자",
+            "bstp_kor_isnm": "전기전자",
+            "per": "12.5",
+            "pbr": "",
+            "eps": "",
+            "bps": "9000",
+            "stck_oprc": "70000",
+            "stck_prpr": "70100",
+            "stck_prdy_clpr": "69000",
+            "stck_hgpr": "71000",
+            "stck_lwpr": "68000",
+            "stck_mxpr": "89700",
+            "stck_llam": "48300",
+            "acml_vol": "123",
+            "prdy_vol": "",
+            "acml_tr_pbmn": "123456",
+            "prdy_vrss": "1100",
+            "prdy_ctrt": "1.59",
+        }
+        responses = [Mock() for _ in range(3)]
+        for response in responses:
+            response.json.return_value = {"output": info}
+        http_client = Mock()
+        http_client.get.side_effect = responses
+        client = KisStockQuoteClient(http_client)
+
+        result = client.get_stock_info("J", "005930")
+
+        self.assertEqual(result.code, "005930")
+        self.assertEqual(result.industry, "전기전자")
+        self.assertEqual(result.per, 12.5)
+        self.assertIsNone(result.pbr)
+        self.assertIsNone(result.eps)
+        self.assertEqual(StockInfoResponse.model_validate(result).per, 12.5)
+        self.assertIsNone(StockInfoResponse.model_validate(result).pbr)
+        self.assertEqual(result.current_price, 70100.0)
+        self.assertEqual(result.current_volume, 123)
+        self.assertEqual(result.previous_volume, 0)
+        self.assertEqual(result.current_trading_value, 123456.0)
 
     def test_service_delegates_daily_price_query_to_quote_client(self):
         """서비스가 일봉 조회 요청을 API 클라이언트로 위임하는지 검증한다."""

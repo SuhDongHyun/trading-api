@@ -3,6 +3,7 @@ from config import KISSetting
 from stock.domain.account import Account, AccountSummary, Position
 from stock.domain.port.account_client import AccountClient
 from stock.infra.kis.kis_http_client import KisHttpClient
+from stock.infra.kis.kis_util import to_float, to_int
 
 
 class KisAccountClient(AccountClient):
@@ -13,7 +14,7 @@ class KisAccountClient(AccountClient):
         self._settings = kis_settings
 
     def get_account_info(self) -> AccountSummary:
-        """KIS 보유 종목과 계좌 요약 응답을 묶어 반환한다."""
+        """보유 종목과 계좌 요약을 묶고 도메인 숫자 필드를 정규화한다."""
 
         path = "/uapi/domestic-stock/v1/trading/inquire-balance"
         params = {
@@ -32,17 +33,17 @@ class KisAccountClient(AccountClient):
             Position(
                 code=item["pdno"],
                 name=item["prdt_name"],
-                quantity=item["hldg_qty"],
-                unrealized_pnl=item["evlu_pfls_amt"],
-                unrealized_return=item["evlu_pfls_rt"],
+                quantity=to_int(item["hldg_qty"]),
+                unrealized_pnl=to_float(item["evlu_pfls_amt"]),
+                unrealized_return=to_float(item["evlu_pfls_rt"]),
             )
             for item in output["output1"]
         ]
         accounts = [
             Account(
-                cash_balance=item["dnca_tot_amt"],
-                total_pnl=item["asst_icdc_amt"],
-                total_return=item["asst_icdc_erng_rt"],
+                cash_balance=to_float(item["dnca_tot_amt"]),
+                total_pnl=to_float(item["asst_icdc_amt"]),
+                total_return=to_float(item["asst_icdc_erng_rt"]),
             )
             for item in output["output2"]
         ]

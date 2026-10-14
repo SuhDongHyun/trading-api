@@ -3,17 +3,28 @@ import pandas as pd
 import FinanceDataReader as fdr
 
 from common.exchange_calendar import get_krx_calendar
+from common.min_interval_throttle import MinIntervalThrottle
 from stock.domain.stock import StockMetaInfo
 from stock.domain.market import VKospiIndex
 from stock.domain.port.korea_stock_list_client import KoreaStockListClient
 from stock.domain.port.vkospi_client import VkospiClient
 
+KRX_API_MIN_INTERVAL_SECONDS = 0.1
+
 
 class KRXClient(KoreaStockListClient, VkospiClient):
     """KRX Open API 응답을 국내 지수 데이터로 변환하는 어댑터."""
 
-    def __init__(self, api_key: str):
+    def __init__(
+        self,
+        api_key: str,
+        *,
+        min_interval_throttle: MinIntervalThrottle | None = None,
+    ):
         self._api_key = api_key
+        self._min_interval_throttle = min_interval_throttle or MinIntervalThrottle(
+            KRX_API_MIN_INTERVAL_SECONDS
+        )
 
     def get_korea_stock_list(self) -> list[StockMetaInfo]:
         return [
@@ -27,8 +38,9 @@ class KRXClient(KoreaStockListClient, VkospiClient):
         ]
 
     def _get_derivative_index(self, date: str, type: str) -> dict:
-        """기준일의 KRX 파생상품지수 일별시세를 DataFrame으로 조회한다."""
+        """기준일의 KRX 파생상품지수 일별시세를 조회한다."""
 
+        self._min_interval_throttle.acquire()
         res = requests.get(
             "https://data-dbg.krx.co.kr/svc/apis/idx/drvprod_dd_trd",
             params={"basDd": date},
@@ -43,7 +55,7 @@ class KRXClient(KoreaStockListClient, VkospiClient):
         )
 
     def get_vkospi_index(self, start_date: str, end_date: str) -> list[VKospiIndex]:
-        """휴장일 API 요청을 피하도록 XKRX 거래일별 VKOSPI를 조회한다."""
+        """휴장일 요청을 피하고 날짜별 호출 간격을 유지하며 VKOSPI를 조회한다."""
 
         vkospi_items = [
             self._get_derivative_index(
