@@ -1,8 +1,7 @@
 import unittest
 from unittest.mock import Mock
 
-from pytest import approx
-
+from common.min_interval_throttle import MinIntervalThrottle
 from config import KISSetting
 from stock.infra.kis.kis_http_client import KisHttpClient
 from stock.infra.kis.kis_rate_limiter import (
@@ -53,25 +52,20 @@ class KISRateLimitTest(unittest.TestCase):
 
     def test_kis_rate_limiter_blocks_until_slot_is_available(self):
         limiter = FakeLimiter()
-        rate_limiter = KisRateLimiter(limiter=limiter)
+        throttle = Mock(spec=MinIntervalThrottle)
+        rate_limiter = KisRateLimiter(
+            limiter=limiter, min_interval_throttle=throttle
+        )
 
         rate_limiter.acquire()
 
         limiter.try_acquire.assert_called_once_with(
             KIS_API_RATE_LIMIT_KEY, blocking=True
         )
+        throttle.acquire.assert_called_once_with()
 
-    def test_kis_rate_limiter_keeps_minimum_interval_between_requests(self):
-        limiter = FakeLimiter()
-        clock = Mock(side_effect=[100.00, 100.05, 100.15])
-        wait = Mock()
-        rate_limiter = KisRateLimiter(limiter=limiter, clock=clock, wait=wait)
-
-        rate_limiter.acquire()
-        rate_limiter.acquire()
-
+    def test_kis_rate_limiter_configures_a_150ms_minimum_interval(self):
         self.assertEqual(KIS_API_MIN_INTERVAL_SECONDS, 0.15)
-        wait.assert_called_once_with(approx(0.10))
 
     def test_http_get_waits_for_rate_limit_slot_before_request(self):
         rate_limiter = Mock()
