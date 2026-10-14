@@ -1,37 +1,28 @@
-"""여러 기술적 지표 계산에서 공유하는 보조 함수."""
+"""여러 기술적 지표 계산에서 공유하는 일봉 보조 함수."""
 
 import math
 
 from stock.service.indicator.date_ranges import (
-    calculate_period_fetch_start_date,
-    normalize_period_end,
-    normalize_period_start,
+    calculate_daily_fetch_start_date,
+    normalize_daily_end_date,
+    normalize_daily_start_date,
 )
 
-EMA_WARMUP_TOLERANCE_BY_PERIOD = {
-    "D": 0.0001,
-    "W": 0.0001,
-    "M": 0.00001,
-    "Y": 0.000001,
-}
+EMA_WARMUP_TOLERANCE = 0.0001
 MACD_PRICE_SEED_ERROR_RATIO = 0.2
 MIN_EMA_SEED_ERROR = 100.0
 
 
-def calculate_indicator_fetch_start_date(start_date, period, window):
-    """기간과 창 크기에 따라 데이터를 가져오기 시작할 날짜를 계산한다."""
-
-    return calculate_period_fetch_start_date(start_date, period, window)
-
-
 def calculate_ema_warmup_days(
     ema_window: int,
-    period: str,
     max_seed_error: float = 100.0,
 ) -> int:
+    """seed 오차가 n일 뒤 `(1-α)^n × max_seed_error`로 줄어드므로 허용 오차 이하가 되는 최소 거래일을 구한다."""
+
     alpha = 2 / (ema_window + 1)
-    tolerance = EMA_WARMUP_TOLERANCE_BY_PERIOD.get(period, 0.0001)
-    return math.ceil(math.log(tolerance / max_seed_error) / math.log(1 - alpha))
+    return math.ceil(
+        math.log(EMA_WARMUP_TOLERANCE / max_seed_error) / math.log(1 - alpha)
+    )
 
 
 def calculate_price_ema_seed_error(reference_price: float | str) -> float:
@@ -42,27 +33,25 @@ def calculate_price_ema_seed_error(reference_price: float | str) -> float:
 
 
 def resolve_base_indicator_date_range(
-    start_date: str, end_date: str, period: str
+    start_date: str, end_date: str
 ) -> tuple[str, str]:
-    """기본 지표 계산에 필요한 날짜 범위를 정규화하고 계산한다."""
+    """조회 시작일과 종료일을 각각 KRX 거래일로 보정한다."""
 
-    valid_start_date = normalize_period_start(start_date, period)
-    valid_end_date = normalize_period_end(end_date, period)
-
-    return valid_start_date, valid_end_date
+    return (
+        normalize_daily_start_date(start_date),
+        normalize_daily_end_date(end_date),
+    )
 
 
 def resolve_windowed_indicator_date_range(
-    start_date: str, end_date: str, period: str, window: int, extra_periods: int = 0
+    start_date: str, end_date: str, window: int, extra_sessions: int = 0
 ) -> tuple[str, str]:
-    """지표 계산에 필요한 날짜 범위를 정규화하고 계산한다."""
+    """지표 창 앞의 거래일을 더 조회한다. RSI는 전일 대비 차분 때문에 거래일 1개가 추가로 필요하다."""
 
-    valid_start_date = normalize_period_start(start_date, period)
-    valid_end_date = normalize_period_end(end_date, period)
-    fetch_start_date = calculate_indicator_fetch_start_date(
-        start_date=valid_start_date,
-        period=period,
-        window=window + extra_periods,
+    valid_start_date = normalize_daily_start_date(start_date)
+    valid_end_date = normalize_daily_end_date(end_date)
+    fetch_start_date = calculate_daily_fetch_start_date(
+        valid_start_date, window + extra_sessions
     )
 
     return fetch_start_date, valid_end_date

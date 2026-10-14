@@ -35,13 +35,12 @@ class StockQuoteService:
         code: str,
         start_date: str,
         end_date: str,
-        period: str,
         adjusted_price: bool = True,
     ):
         """지정 구간의 일봉 시세를 외부 API에서 조회한다."""
 
         valid_start_date, valid_end_date = resolve_base_indicator_date_range(
-            start_date, end_date, period
+            start_date, end_date
         )
 
         return self.api_client.get_daily_stock_prices(
@@ -49,7 +48,6 @@ class StockQuoteService:
             code=code,
             start_date=valid_start_date,
             end_date=valid_end_date,
-            period=period,
             adjusted_price=adjusted_price,
         )
 
@@ -59,7 +57,6 @@ class StockQuoteService:
         code: str,
         start_date: str,
         end_date: str,
-        period: str,
         adjusted_price: bool = True,
         window: int = 5,
     ):
@@ -69,19 +66,18 @@ class StockQuoteService:
             raise ValueError("window must be positive")
 
         fetch_start_date, valid_end_date = resolve_windowed_indicator_date_range(
-            start_date, end_date, period, window
+            start_date, end_date, window
         )
 
-        period_prices = self.get_daily_stock_prices(
+        daily_prices = self.get_daily_stock_prices(
             market=market,
             code=code,
             start_date=fetch_start_date,
             end_date=valid_end_date,
-            period=period,
             adjusted_price=adjusted_price,
         )
 
-        return calculate_moving_average_values(period_prices, window)
+        return calculate_moving_average_values(daily_prices, window)
 
     def get_rsi(
         self,
@@ -89,7 +85,6 @@ class StockQuoteService:
         code: str,
         start_date: str,
         end_date: str,
-        period: str,
         adjusted_price: bool = True,
         rsi_window: int = 14,
     ):
@@ -99,19 +94,18 @@ class StockQuoteService:
             raise ValueError("rsi_window must be positive")
 
         fetch_start_date, valid_end_date = resolve_windowed_indicator_date_range(
-            start_date, end_date, period, rsi_window, extra_periods=1
+            start_date, end_date, rsi_window, extra_sessions=1
         )
 
-        period_prices = self.get_daily_stock_prices(
+        daily_prices = self.get_daily_stock_prices(
             market=market,
             code=code,
             start_date=fetch_start_date,
             end_date=valid_end_date,
-            period=period,
             adjusted_price=adjusted_price,
         )
 
-        return calculate_rsi_values(period_prices, rsi_window)
+        return calculate_rsi_values(daily_prices, rsi_window)
 
     def get_rsi_signal(
         self,
@@ -119,7 +113,6 @@ class StockQuoteService:
         code: str,
         start_date: str,
         end_date: str,
-        period: str,
         adjusted_price: bool = True,
         rsi_window: int = 14,
         ema_window: int = 9,
@@ -129,10 +122,10 @@ class StockQuoteService:
         if rsi_window <= 0 or ema_window <= 0:
             raise ValueError("rsi_window and ema_window must be positive")
 
-        ema_warmup_days = calculate_ema_warmup_days(ema_window, period)
+        ema_warmup_days = calculate_ema_warmup_days(ema_window)
 
         fetch_start_date, valid_end_date = resolve_windowed_indicator_date_range(
-            start_date, end_date, period, ema_warmup_days
+            start_date, end_date, ema_warmup_days
         )
 
         rsi_values = self.get_rsi(
@@ -140,7 +133,6 @@ class StockQuoteService:
             code=code,
             start_date=fetch_start_date,
             end_date=valid_end_date,
-            period=period,
             adjusted_price=adjusted_price,
             rsi_window=rsi_window,
         )
@@ -153,7 +145,6 @@ class StockQuoteService:
         code: str,
         start_date: str,
         end_date: str,
-        period: str,
         adjusted_price: bool = True,
         ema_short_window: int = 12,
         ema_long_window: int = 26,
@@ -166,23 +157,22 @@ class StockQuoteService:
         stock_info = self.get_stock_info(market, code)
         max_seed_error = calculate_price_ema_seed_error(stock_info.current_price)
         ema_warmup_days = calculate_ema_warmup_days(
-            ema_long_window, period, max_seed_error=max_seed_error
+            ema_long_window, max_seed_error=max_seed_error
         )
         fetch_start_date, valid_end_date = resolve_windowed_indicator_date_range(
-            start_date, end_date, period, ema_warmup_days
+            start_date, end_date, ema_warmup_days
         )
 
-        period_prices = self.get_daily_stock_prices(
+        daily_prices = self.get_daily_stock_prices(
             market=market,
             code=code,
             start_date=fetch_start_date,
             end_date=valid_end_date,
-            period=period,
             adjusted_price=adjusted_price,
         )
 
         return calculate_macd_values(
-            prices=period_prices,
+            prices=daily_prices,
             ema_short_window=ema_short_window,
             ema_long_window=ema_long_window,
             ema_warmup_days=ema_warmup_days,
@@ -194,7 +184,6 @@ class StockQuoteService:
         code: str,
         start_date: str,
         end_date: str,
-        period: str,
         adjusted_price: bool = True,
         ema_short_window: int = 12,
         ema_long_window: int = 26,
@@ -207,10 +196,10 @@ class StockQuoteService:
                 "ema_short_window, ema_long_window, and ema_window must be positive"
             )
 
-        ema_warmup_days = calculate_ema_warmup_days(ema_window, period)
+        ema_warmup_days = calculate_ema_warmup_days(ema_window)
 
         fetch_start_date, valid_end_date = resolve_windowed_indicator_date_range(
-            start_date, end_date, period, ema_warmup_days
+            start_date, end_date, ema_warmup_days
         )
 
         macd_values = self.get_macd(
@@ -218,7 +207,6 @@ class StockQuoteService:
             code=code,
             start_date=fetch_start_date,
             end_date=valid_end_date,
-            period=period,
             adjusted_price=adjusted_price,
             ema_short_window=ema_short_window,
             ema_long_window=ema_long_window,

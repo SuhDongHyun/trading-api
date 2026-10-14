@@ -43,7 +43,6 @@ class DomesticMarketIndexPriceTest(unittest.TestCase):
                 code="0001",
                 start_date="20241301",
                 end_date="20240531",
-                period="D",
             )
 
         api_get.assert_not_called()
@@ -65,14 +64,10 @@ class DomesticMarketIndexPriceTest(unittest.TestCase):
             code="0001",
             start_date="20240528",
             end_date="20240531",
-            period="D",
         )
 
         api_get.assert_called_once_with(
-            path=(
-                "/uapi/domestic-stock/v1/quotations/"
-                "inquire-index-daily-price"
-            ),
+            path=("/uapi/domestic-stock/v1/quotations/inquire-index-daily-price"),
             params={
                 "FID_COND_MRKT_DIV_CODE": "U",
                 "FID_INPUT_ISCD": "0001",
@@ -87,9 +82,7 @@ class DomesticMarketIndexPriceTest(unittest.TestCase):
         )
 
     @patch("stock.infra.kis.kis_client.api_get")
-    def test_walks_backward_with_cursor_date_until_start_date_is_covered(
-        self, api_get
-    ):
+    def test_walks_backward_with_cursor_date_until_start_date_is_covered(self, api_get):
         api_get.side_effect = [
             FakeResponse(
                 [
@@ -113,7 +106,6 @@ class DomesticMarketIndexPriceTest(unittest.TestCase):
             code="0001",
             start_date="20240429",
             end_date="20240626",
-            period="D",
         )
 
         self.assertEqual(
@@ -121,8 +113,7 @@ class DomesticMarketIndexPriceTest(unittest.TestCase):
             [
                 call(
                     path=(
-                        "/uapi/domestic-stock/v1/quotations/"
-                        "inquire-index-daily-price"
+                        "/uapi/domestic-stock/v1/quotations/inquire-index-daily-price"
                     ),
                     params={
                         "FID_COND_MRKT_DIV_CODE": "U",
@@ -134,8 +125,7 @@ class DomesticMarketIndexPriceTest(unittest.TestCase):
                 ),
                 call(
                     path=(
-                        "/uapi/domestic-stock/v1/quotations/"
-                        "inquire-index-daily-price"
+                        "/uapi/domestic-stock/v1/quotations/inquire-index-daily-price"
                     ),
                     params={
                         "FID_COND_MRKT_DIV_CODE": "U",

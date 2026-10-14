@@ -41,33 +41,33 @@ class MarketIndexClient(ICompositeIndexClient):
         """현재 시장의 USD/KRW 환율을 조회한다."""
 
         return self.api_client.get_overseas_market_index_prices(
-            "X", "FX@KRW", start_date, end_date, "D"
+            "X", "FX@KRW", start_date, end_date
         )
 
     def get_treasury_yield(self, code, start_date: str, end_date: str):
         """현재 시장의 국채 수익률을 조회한다."""
 
         return self.api_client.get_overseas_market_index_prices(
-            "I", code, start_date, end_date, "D"
+            "I", code, start_date, end_date
         )
 
     def get_sp500_index(self, start_date: str, end_date: str):
         """현재 시장의 S&P 500 지수를 조회한다."""
 
         return self.api_client.get_overseas_market_index_prices(
-            "N", "SPX", start_date, end_date, "D"
+            "N", "SPX", start_date, end_date
         )
 
     def get_kospi_index(self, start_date: str, end_date: str):
         """현재 시장의 KOSPI 지수를 조회한다."""
 
         return self.api_client.get_domestic_market_index_prices(
-            "U", "0001", start_date, end_date, "D"
+            "U", "0001", start_date, end_date
         )
 
     def get_kosdaq_index(self, start_date: str, end_date: str):
         """현재 시장의 KOSDAQ 지수를 조회한다."""
 
         return self.api_client.get_domestic_market_index_prices(
-            "U", "1001", start_date, end_date, "D"
+            "U", "1001", start_date, end_date
         )

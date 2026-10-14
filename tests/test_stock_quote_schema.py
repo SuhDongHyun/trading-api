@@ -61,8 +61,8 @@ class StockQuoteSchemaTest(unittest.TestCase):
                 self.assertEqual(request.start_date, "20260101")
                 self.assertEqual(request.end_date, "20260107")
 
-    def test_period_request_schemas_allow_only_supported_period_codes(self):
-        """기간 코드는 일/주/月/年 코드만 허용한다."""
+    def test_historical_request_schemas_do_not_expose_period(self):
+        """과거 시세 요청은 일봉으로 고정되어 period 필드를 노출하지 않는다."""
 
         request_classes = [
             DailyStockPriceRequest,
@@ -74,11 +74,7 @@ class StockQuoteSchemaTest(unittest.TestCase):
         ]
 
         for request_class in request_classes:
-            for period in ["D", "W", "M", "Y"]:
-                self.assertEqual(request_class(period=period).period, period)
-
-            with self.assertRaises(ValidationError):
-                request_class(period="Q")
+            self.assertNotIn("period", request_class.model_fields)
 
     def test_window_fields_reject_values_below_one(self):
         """window 계열 파라미터는 1 이상이어야 한다."""

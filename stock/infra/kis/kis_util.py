@@ -1,6 +1,4 @@
-"""KIS API 응답에서 숫자 필드의 빈 문자열을 기본값으로 정규화하는 유틸리티 함수와 날짜 범위를 분할하는 함수."""
-
-import pandas as pd
+"""KIS API 응답 숫자 정규화와 일봉 조회 구간 분할 유틸리티."""
 
 from common.exchange_calendar import get_krx_calendar
 
@@ -23,24 +21,14 @@ def to_int(value: str | int | float | None) -> int:
     return int(float(value))
 
 
-def split_date_range(
-    start_date: str, end_date: str, period: str
-) -> list[tuple[str, str]]:
-    """주어진 날짜 범위를 MAX_CALLABLE_DATES 크기로 분할한다."""
-    cal = get_krx_calendar()
-    sessions = cal.sessions_in_range(start_date, end_date)
+def split_date_range(start_date: str, end_date: str) -> list[tuple[str, str]]:
+    """KIS 차트 요청의 100건 한도에 맞춰 날짜 범위를 거래일 100개씩 나눈다."""
 
-    picker = "first" if period == "W" else "last"
-    grouped_sessions = (
-        pd.Series(sessions)
-        .groupby(sessions.to_period(period))
-        .agg(picker)
-        .dt.strftime("%Y%m%d")
-        .tolist()
-    )
-    split_sessions = [
-        grouped_sessions[i : i + MAX_CALLABLE_DATES]
-        for i in range(0, len(grouped_sessions), MAX_CALLABLE_DATES)
+    sessions = get_krx_calendar().sessions_in_range(start_date, end_date)
+    session_dates = [session.strftime("%Y%m%d") for session in sessions]
+    chunks = [
+        session_dates[index : index + MAX_CALLABLE_DATES]
+        for index in range(0, len(session_dates), MAX_CALLABLE_DATES)
     ]
 
-    return [(session[0], session[-1]) for session in split_sessions]
+    return [(chunk[0], chunk[-1]) for chunk in chunks]

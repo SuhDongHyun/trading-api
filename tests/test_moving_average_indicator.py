@@ -4,11 +4,6 @@ from unittest.mock import patch
 from stock.domain.stock import DailyStockPrice, StockInfo
 from stock.interface.controller.stock_quote_controller import get_moving_average
 from stock.interface.schema.stock_quote import MovingAverageRequest
-from stock.service.indicator.common import (
-    calculate_indicator_fetch_start_date,
-    normalize_period_end,
-    normalize_period_start,
-)
 from stock.service.stock_quote_service import StockQuoteService
 
 
@@ -21,11 +16,11 @@ class FakeApiClient:
         self.calls = []
 
     def get_daily_stock_prices(
-        self, market, code, start_date, end_date, period, adjusted_price
+        self, market, code, start_date, end_date, adjusted_price
     ):
         """일봉 조회 호출을 기록하고 단일 구간 가격을 반환한다."""
 
-        self.calls.append((market, code, start_date, end_date, period, adjusted_price))
+        self.calls.append((market, code, start_date, end_date, adjusted_price))
         prices = [
             self._price("20240401", 10.0),
             self._price("20240402", 11.0),
@@ -55,11 +50,11 @@ class CappedApiClient(FakeApiClient):
     """여러 과거 구간 조회가 필요한 상황을 재현하는 API 클라이언트."""
 
     def get_daily_stock_prices(
-        self, market, code, start_date, end_date, period, adjusted_price
+        self, market, code, start_date, end_date, adjusted_price
     ):
         """조회 종료일에 따라 다른 가격 chunk를 반환한다."""
 
-        self.calls.append((market, code, start_date, end_date, period, adjusted_price))
+        self.calls.append((market, code, start_date, end_date, adjusted_price))
         prices = [
             self._price("20240403", 3.0),
             self._price("20240404", 4.0),
@@ -86,14 +81,13 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
             code="005930",
             start_date="20240403",
             end_date="20240404",
-            period="D",
             adjusted_price=True,
             window=3,
         )
 
         self.assertEqual(
             api_client.calls,
-            [("J", "005930", "20240401", "20240404", "D", True)],
+            [("J", "005930", "20240401", "20240404", True)],
         )
         self.assertEqual(
             [value.date for value in result],
@@ -113,178 +107,19 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
             code="005930",
             start_date="20240410",
             end_date="20240411",
-            period="D",
             adjusted_price=True,
             window=5,
         )
 
         self.assertEqual(
             api_client.calls,
-            [("J", "005930", "20240404", "20240411", "D", True)],
+            [("J", "005930", "20240404", "20240411", True)],
         )
         self.assertEqual(
             [value.date for value in result],
             ["20240409", "20240410", "20240411"],
         )
         self.assertEqual([value.value for value in result], [5.8, 7.2, 8.6])
-
-    def test_calculates_fetch_start_from_period_anchor(self):
-        """W/M/Y는 period 첫 거래일에서 window-1개 이전 bar까지 조회한다."""
-
-        self.assertEqual(normalize_period_start("20260401", "D"), "20260401")
-        self.assertEqual(normalize_period_start("20260401", "W"), "20260330")
-        self.assertEqual(normalize_period_start("20260415", "M"), "20260401")
-        self.assertEqual(normalize_period_start("20260415", "Y"), "20260102")
-        self.assertEqual(normalize_period_start("20260101", "D"), "20260102")
-        self.assertEqual(normalize_period_start("20260101", "W"), "20251229")
-        self.assertEqual(normalize_period_start("20250315", "M"), "20250304")
-        self.assertEqual(normalize_period_start("20260115", "Y"), "20260102")
-        self.assertEqual(normalize_period_end("20260415", "M"), "20260430")
-        self.assertEqual(normalize_period_end("20260415", "Y"), "20261231")
-
-        self.assertEqual(
-            calculate_indicator_fetch_start_date("20260401", "D", 14),
-            "20260313",
-        )
-        self.assertEqual(
-            calculate_indicator_fetch_start_date(
-                normalize_period_start("20260401", "W"), "W", 14
-            ),
-            "20251229",
-        )
-        self.assertEqual(
-            calculate_indicator_fetch_start_date("20260401", "M", 14),
-            "20250304",
-        )
-        self.assertEqual(
-            calculate_indicator_fetch_start_date(
-                normalize_period_start("20260401", "Y"), "Y", 14
-            ),
-            "20130102",
-        )
-
-    def test_weekly_moving_average_filters_by_week_anchor(self):
-        """주봉은 요청일이 속한 주의 월요일부터 응답에 포함한다."""
-
-        class WeeklyApiClient(FakeApiClient):
-            def get_daily_stock_prices(
-                self, market, code, start_date, end_date, period, adjusted_price
-            ):
-                self.calls.append(
-                    (market, code, start_date, end_date, period, adjusted_price)
-                )
-                return [
-                    self._price("20260316", 10.0),
-                    self._price("20260323", 20.0),
-                    self._price("20260330", 30.0),
-                    self._price("20260406", 40.0),
-                ]
-
-        api_client = WeeklyApiClient()
-        service = StockQuoteService(api_client)
-
-        result = service.get_moving_average(
-            market="J",
-            code="005930",
-            start_date="20260401",
-            end_date="20260410",
-            period="W",
-            adjusted_price=True,
-            window=3,
-        )
-
-        self.assertEqual(
-            api_client.calls,
-            [("J", "005930", "20260316", "20260406", "W", True)],
-        )
-        self.assertEqual(
-            [value.date for value in result],
-            ["20260330", "20260406"],
-        )
-        self.assertEqual(result[0].value, 20.0)
-        self.assertEqual(result[1].value, 30.0)
-
-    def test_monthly_moving_average_filters_by_month_anchor(self):
-        """월봉은 요청일이 속한 월의 1일부터 응답에 포함한다."""
-
-        class MonthlyApiClient(FakeApiClient):
-            def get_daily_stock_prices(
-                self, market, code, start_date, end_date, period, adjusted_price
-            ):
-                self.calls.append(
-                    (market, code, start_date, end_date, period, adjusted_price)
-                )
-                return [
-                    self._price("20260202", 10.0),
-                    self._price("20260303", 20.0),
-                    self._price("20260401", 30.0),
-                    self._price("20260504", 40.0),
-                ]
-
-        api_client = MonthlyApiClient()
-        service = StockQuoteService(api_client)
-
-        result = service.get_moving_average(
-            market="J",
-            code="005930",
-            start_date="20260415",
-            end_date="20260520",
-            period="M",
-            adjusted_price=True,
-            window=3,
-        )
-
-        self.assertEqual(
-            api_client.calls,
-            [("J", "005930", "20260202", "20260531", "M", True)],
-        )
-        self.assertEqual(
-            [value.date for value in result],
-            ["20260401", "20260504"],
-        )
-        self.assertEqual(result[0].value, 20.0)
-        self.assertEqual(result[1].value, 30.0)
-
-    def test_yearly_moving_average_filters_by_year_anchor(self):
-        """년봉은 요청일이 속한 연도의 1월 1일부터 응답에 포함한다."""
-
-        class YearlyApiClient(FakeApiClient):
-            def get_daily_stock_prices(
-                self, market, code, start_date, end_date, period, adjusted_price
-            ):
-                self.calls.append(
-                    (market, code, start_date, end_date, period, adjusted_price)
-                )
-                return [
-                    self._price("20240102", 10.0),
-                    self._price("20250102", 20.0),
-                    self._price("20260102", 30.0),
-                    self._price("20270104", 40.0),
-                ]
-
-        api_client = YearlyApiClient()
-        service = StockQuoteService(api_client)
-
-        result = service.get_moving_average(
-            market="J",
-            code="005930",
-            start_date="20260415",
-            end_date="20270520",
-            period="Y",
-            adjusted_price=True,
-            window=3,
-        )
-
-        self.assertEqual(
-            api_client.calls,
-            [("J", "005930", "20240102", "20271231", "Y", True)],
-        )
-        self.assertEqual(
-            [value.date for value in result],
-            ["20260102", "20270104"],
-        )
-        self.assertEqual(result[0].value, 20.0)
-        self.assertEqual(result[1].value, 30.0)
 
     def test_controller_returns_moving_average_response_schema(self):
         """Controller가 이동평균 결과를 응답 스키마로 변환하는지 검증한다."""
@@ -294,7 +129,6 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
             code="005930",
             start_date="20240403",
             end_date="20240404",
-            period="D",
             adjusted_price=True,
             window=3,
         )
@@ -316,7 +150,6 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
                 code="005930",
                 start_date="20240403",
                 end_date="20240404",
-                period="D",
                 adjusted_price=True,
                 window=0,
             )
@@ -357,7 +190,9 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
         api_client = MacdApiClient()
         service = StockQuoteService(api_client)
 
-        with patch("stock.service.stock_quote_service.calculate_ema_warmup_days") as warmup:
+        with patch(
+            "stock.service.stock_quote_service.calculate_ema_warmup_days"
+        ) as warmup:
             warmup.return_value = 3
 
             service.get_macd(
@@ -365,14 +200,13 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
                 code="005930",
                 start_date="20240403",
                 end_date="20240404",
-                period="D",
                 adjusted_price=True,
                 ema_short_window=12,
                 ema_long_window=26,
             )
 
         self.assertEqual(api_client.stock_info_calls, [("J", "005930")])
-        warmup.assert_called_once_with(26, "D", max_seed_error=14000.0)
+        warmup.assert_called_once_with(26, max_seed_error=14000.0)
 
     def test_macd_warmup_accepts_current_price_string_from_adapter(self):
         """KIS adapter가 문자열 현재가를 넘겨도 MACD warmup 스케일을 계산한다."""
@@ -404,7 +238,9 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
 
         service = StockQuoteService(StringPriceMacdApiClient())
 
-        with patch("stock.service.stock_quote_service.calculate_ema_warmup_days") as warmup:
+        with patch(
+            "stock.service.stock_quote_service.calculate_ema_warmup_days"
+        ) as warmup:
             warmup.return_value = 3
 
             service.get_macd(
@@ -412,13 +248,12 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
                 code="005930",
                 start_date="20240403",
                 end_date="20240404",
-                period="D",
                 adjusted_price=True,
                 ema_short_window=12,
                 ema_long_window=26,
             )
 
-        warmup.assert_called_once_with(26, "D", max_seed_error=14000.0)
+        warmup.assert_called_once_with(26, max_seed_error=14000.0)
 
 
 if __name__ == "__main__":

@@ -21,7 +21,7 @@ class ICompositeIndexClient(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_usd_krw_exchange_rate(self, start_date: str, end_date: str, period: str):
+    def get_usd_krw_exchange_rate(self, start_date: str, end_date: str):
         raise NotImplementedError
 
     @abstractmethod
