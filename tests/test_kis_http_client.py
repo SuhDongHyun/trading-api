@@ -1,9 +1,14 @@
 import logging
+from unittest.mock import Mock, call
 
 import pytest
 from requests import ConnectionError, HTTPError, Response
 
-from stock.infra.kis import kis_http_client
+from config import KISSetting
+from stock.infra.kis.kis_http_client import (
+    KIS_REQUEST_TIMEOUT_SECONDS,
+    KisHttpClient,
+)
 
 
 def make_response(status_code: int, url: str, body: str) -> Response:
@@ -14,31 +19,50 @@ def make_response(status_code: int, url: str, body: str) -> Response:
     return response
 
 
-def test_api_get_logs_kis_error_response_without_sensitive_headers(
-    monkeypatch, caplog
-):
+def make_client(get=None, post=None, headers=None, responses=None):
+    token_manager = Mock()
+    token_manager.auth_headers.side_effect = headers or [
+        {"authorization": "Bearer token", "tr_id": "TEST"}
+    ]
+    rate_limiter = Mock()
+    http_client = KisHttpClient(
+        kis_settings=KISSetting(
+            base_url="https://openapi.koreainvestment.com:9443",
+            account_num="12345678",
+            account_code="01",
+            appkey="test-key",
+            appsecret="test-secret",
+        ),
+        token_manager=token_manager,
+        rate_limiter=rate_limiter,
+        get=get or Mock(side_effect=responses),
+        post=post or Mock(side_effect=responses),
+    )
+    return http_client, token_manager, rate_limiter
+
+
+def test_http_get_logs_kis_error_response_without_sensitive_headers(caplog):
     response = make_response(
         500,
         "https://openapi.koreainvestment.com:9443/uapi/test",
         '{"msg_cd":"KIS00000","msg1":"KIS failure"}',
     )
-
-    monkeypatch.setattr(kis_http_client, "acquire_kis_api_slot", lambda: None)
-    monkeypatch.setattr(
-        kis_http_client,
-        "build_header",
-        lambda tr_id, extra_headers: {
-            "authorization": "Bearer token",
-            "appkey": "secret-key",
-            "appsecret": "secret-value",
-            "tr_id": tr_id,
-        },
+    transport = Mock(return_value=response)
+    http_client, _, _ = make_client(
+        get=transport,
+        headers=[
+            {
+                "authorization": "Bearer token",
+                "appkey": "secret-key",
+                "appsecret": "secret-value",
+                "tr_id": "FHKST01011800",
+            }
+        ],
     )
-    monkeypatch.setattr(kis_http_client, "get", lambda **kwargs: response)
 
     with caplog.at_level(logging.ERROR):
         with pytest.raises(HTTPError):
-            kis_http_client.api_get(
+            http_client.get(
                 path="/uapi/test",
                 params={"FID_INPUT_ISCD": "000660"},
                 tr_id="FHKST01011800",
@@ -53,12 +77,12 @@ def test_api_get_logs_kis_error_response_without_sensitive_headers(
     assert "secret-value" not in caplog.text
 
 
-def test_api_get_refreshes_token_once_when_kis_reports_expired_token(monkeypatch):
+def test_http_get_refreshes_token_once_when_kis_reports_expired_token():
     responses = [
         make_response(
             500,
             "https://openapi.koreainvestment.com:9443/uapi/test",
-            '{"rt_cd":"1","msg_cd":"EGW00123","msg1":"기간이 만료된 token 입니다."}',
+            '{"rt_cd":"1","msg_cd":"EGW00123","msg1":"expired"}',
         ),
         make_response(
             200,
@@ -66,61 +90,53 @@ def test_api_get_refreshes_token_once_when_kis_reports_expired_token(monkeypatch
             '{"rt_cd":"0","output":[]}',
         ),
     ]
-    refresh_flags = []
     sent_authorizations = []
+    transport = Mock(
+        side_effect=lambda **kwargs: (
+            sent_authorizations.append(kwargs["headers"]["authorization"])
+            or responses.pop(0)
+        )
+    )
+    headers = [
+        {"authorization": "Bearer expired-token", "tr_id": "FHKST03030100"},
+        {"authorization": "Bearer new-token", "tr_id": "FHKST03030100"},
+    ]
+    http_client, token_manager, _ = make_client(get=transport, headers=headers)
 
-    def fake_auth_headers(extra=None, force_refresh=False):
-        refresh_flags.append(force_refresh)
-        token = "new-token" if force_refresh else "expired-token"
-        headers = {"authorization": f"Bearer {token}"}
-        if extra:
-            headers.update(extra)
-        return headers
-
-    def fake_get(**kwargs):
-        sent_authorizations.append(kwargs["headers"]["authorization"])
-        return responses.pop(0)
-
-    monkeypatch.setattr(kis_http_client, "acquire_kis_api_slot", lambda: None)
-    monkeypatch.setattr(kis_http_client, "auth_headers", fake_auth_headers)
-    monkeypatch.setattr(kis_http_client, "get", fake_get)
-
-    response = kis_http_client.api_get(
-        path="/uapi/test",
-        params={"FID_INPUT_ISCD": "FX@KRW"},
-        tr_id="FHKST03030100",
+    response = http_client.get(
+        path="/uapi/test", params={"FID_INPUT_ISCD": "FX@KRW"}, tr_id="FHKST03030100"
     )
 
     assert response.status_code == 200
-    assert refresh_flags == [False, True]
+    assert token_manager.auth_headers.call_args_list == [
+        call({"tr_id": "FHKST03030100"}),
+        call({"tr_id": "FHKST03030100"}, force_refresh=True),
+    ]
     assert sent_authorizations == ["Bearer expired-token", "Bearer new-token"]
 
 
-def test_api_post_logs_kis_error_response_without_sensitive_headers(
-    monkeypatch, caplog
-):
+def test_http_post_logs_kis_error_response_without_sensitive_headers(caplog):
     response = make_response(
         500,
         "https://openapi.koreainvestment.com:9443/uapi/test",
         '{"msg_cd":"KIS00000","msg1":"KIS failure"}',
     )
-
-    monkeypatch.setattr(kis_http_client, "acquire_kis_api_slot", lambda: None)
-    monkeypatch.setattr(
-        kis_http_client,
-        "build_header",
-        lambda tr_id, extra_headers: {
-            "authorization": "Bearer token",
-            "appkey": "secret-key",
-            "appsecret": "secret-value",
-            "tr_id": tr_id,
-        },
+    transport = Mock(return_value=response)
+    http_client, _, _ = make_client(
+        post=transport,
+        headers=[
+            {
+                "authorization": "Bearer token",
+                "appkey": "secret-key",
+                "appsecret": "secret-value",
+                "tr_id": "FHKST01011800",
+            }
+        ],
     )
-    monkeypatch.setattr(kis_http_client, "post", lambda **kwargs: response)
 
     with caplog.at_level(logging.ERROR):
         with pytest.raises(HTTPError):
-            kis_http_client.api_post(
+            http_client.post(
                 path="/uapi/test",
                 body={"FID_INPUT_ISCD": "000660"},
                 tr_id="FHKST01011800",
@@ -135,28 +151,23 @@ def test_api_post_logs_kis_error_response_without_sensitive_headers(
     assert "secret-value" not in caplog.text
 
 
-def test_api_get_uses_timeout_and_logs_connection_errors_without_sensitive_headers(
-    monkeypatch, caplog
-):
-    def raise_connection_error(**kwargs):
-        raise ConnectionError("remote disconnected")
-
-    monkeypatch.setattr(kis_http_client, "acquire_kis_api_slot", lambda: None)
-    monkeypatch.setattr(
-        kis_http_client,
-        "build_header",
-        lambda tr_id, extra_headers: {
-            "authorization": "Bearer token",
-            "appkey": "secret-key",
-            "appsecret": "secret-value",
-            "tr_id": tr_id,
-        },
+def test_http_get_uses_timeout_and_logs_connection_errors(caplog):
+    transport = Mock(side_effect=ConnectionError("remote disconnected"))
+    http_client, _, _ = make_client(
+        get=transport,
+        headers=[
+            {
+                "authorization": "Bearer token",
+                "appkey": "secret-key",
+                "appsecret": "secret-value",
+                "tr_id": "FHKST01011800",
+            }
+        ],
     )
-    monkeypatch.setattr(kis_http_client, "get", raise_connection_error)
 
     with caplog.at_level(logging.ERROR):
         with pytest.raises(ConnectionError):
-            kis_http_client.api_get(
+            http_client.get(
                 path="/uapi/test",
                 params={"FID_INPUT_ISCD": "000660"},
                 tr_id="FHKST01011800",
@@ -168,32 +179,19 @@ def test_api_get_uses_timeout_and_logs_connection_errors_without_sensitive_heade
     assert "Bearer token" not in caplog.text
     assert "secret-key" not in caplog.text
     assert "secret-value" not in caplog.text
+    assert transport.call_args.kwargs["timeout"] == KIS_REQUEST_TIMEOUT_SECONDS
 
 
-def test_api_post_uses_timeout(monkeypatch):
-    captured_kwargs = {}
+def test_http_post_uses_timeout_and_json_body():
     response = make_response(
         200,
         "https://openapi.koreainvestment.com:9443/uapi/test",
         '{"rt_cd":"0"}',
     )
+    transport = Mock(return_value=response)
+    http_client, _, _ = make_client(post=transport)
 
-    def capture_post(**kwargs):
-        captured_kwargs.update(kwargs)
-        return response
+    http_client.post(path="/uapi/test", body={"code": "005930"}, tr_id="TEST")
 
-    monkeypatch.setattr(kis_http_client, "acquire_kis_api_slot", lambda: None)
-    monkeypatch.setattr(
-        kis_http_client,
-        "build_header",
-        lambda tr_id, extra_headers: {"tr_id": tr_id},
-    )
-    monkeypatch.setattr(kis_http_client, "post", capture_post)
-
-    kis_http_client.api_post(
-        path="/uapi/test",
-        body={"code": "005930"},
-        tr_id="TEST",
-    )
-
-    assert captured_kwargs["timeout"] == kis_http_client.KIS_REQUEST_TIMEOUT_SECONDS
+    assert transport.call_args.kwargs["timeout"] == KIS_REQUEST_TIMEOUT_SECONDS
+    assert transport.call_args.kwargs["json"] == {"code": "005930"}

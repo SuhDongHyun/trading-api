@@ -1,7 +1,9 @@
 import unittest
-from unittest.mock import call, patch
+from unittest.mock import Mock, call
 
-from stock.infra.kis.kis_client import KISClient
+from stock.infra.kis.kis_domestic_market_index_client import (
+    KisDomesticMarketIndexClient,
+)
 
 
 class FakeResponse:
@@ -33,9 +35,9 @@ def make_price(date: str, close_price: str) -> dict:
 class DomesticMarketIndexPriceTest(unittest.TestCase):
     """국내 시장 지수의 기간 조회 동작을 검증한다."""
 
-    @patch("stock.infra.kis.kis_client.api_get")
-    def test_rejects_invalid_date_before_requesting_api(self, api_get):
-        client = KISClient()
+    def test_rejects_invalid_date_before_requesting_api(self):
+        http_client = Mock()
+        client = KisDomesticMarketIndexClient(http_client)
 
         with self.assertRaises(ValueError):
             client.get_domestic_market_index_prices(
@@ -45,11 +47,11 @@ class DomesticMarketIndexPriceTest(unittest.TestCase):
                 end_date="20240531",
             )
 
-        api_get.assert_not_called()
+        http_client.get.assert_not_called()
 
-    @patch("stock.infra.kis.kis_client.api_get")
-    def test_requests_date_range_and_returns_prices_in_date_order(self, api_get):
-        api_get.return_value = FakeResponse(
+    def test_requests_date_range_and_returns_prices_in_date_order(self):
+        http_client = Mock()
+        http_client.get.return_value = FakeResponse(
             [
                 make_price("20240531", "2700"),
                 make_price("20240530", "2690"),
@@ -57,7 +59,7 @@ class DomesticMarketIndexPriceTest(unittest.TestCase):
                 make_price("20240528", "2670"),
             ]
         )
-        client = KISClient()
+        client = KisDomesticMarketIndexClient(http_client)
 
         result = client.get_domestic_market_index_prices(
             market="U",
@@ -66,8 +68,8 @@ class DomesticMarketIndexPriceTest(unittest.TestCase):
             end_date="20240531",
         )
 
-        api_get.assert_called_once_with(
-            path=("/uapi/domestic-stock/v1/quotations/inquire-index-daily-price"),
+        http_client.get.assert_called_once_with(
+            "/uapi/domestic-stock/v1/quotations/inquire-index-daily-price",
             params={
                 "FID_COND_MRKT_DIV_CODE": "U",
                 "FID_INPUT_ISCD": "0001",
@@ -81,9 +83,9 @@ class DomesticMarketIndexPriceTest(unittest.TestCase):
             ["20240528", "20240529", "20240530", "20240531"],
         )
 
-    @patch("stock.infra.kis.kis_client.api_get")
-    def test_walks_backward_with_cursor_date_until_start_date_is_covered(self, api_get):
-        api_get.side_effect = [
+    def test_walks_backward_with_cursor_date_until_start_date_is_covered(self):
+        http_client = Mock()
+        http_client.get.side_effect = [
             FakeResponse(
                 [
                     make_price("20240626", "2800"),
@@ -99,7 +101,7 @@ class DomesticMarketIndexPriceTest(unittest.TestCase):
                 ]
             ),
         ]
-        client = KISClient()
+        client = KisDomesticMarketIndexClient(http_client)
 
         result = client.get_domestic_market_index_prices(
             market="U",
@@ -109,12 +111,10 @@ class DomesticMarketIndexPriceTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            api_get.call_args_list,
+            http_client.get.call_args_list,
             [
                 call(
-                    path=(
-                        "/uapi/domestic-stock/v1/quotations/inquire-index-daily-price"
-                    ),
+                    "/uapi/domestic-stock/v1/quotations/inquire-index-daily-price",
                     params={
                         "FID_COND_MRKT_DIV_CODE": "U",
                         "FID_INPUT_ISCD": "0001",
@@ -124,9 +124,7 @@ class DomesticMarketIndexPriceTest(unittest.TestCase):
                     tr_id="FHPUP02120000",
                 ),
                 call(
-                    path=(
-                        "/uapi/domestic-stock/v1/quotations/inquire-index-daily-price"
-                    ),
+                    "/uapi/domestic-stock/v1/quotations/inquire-index-daily-price",
                     params={
                         "FID_COND_MRKT_DIV_CODE": "U",
                         "FID_INPUT_ISCD": "0001",

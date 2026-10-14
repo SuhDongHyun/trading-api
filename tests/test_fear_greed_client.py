@@ -1,10 +1,9 @@
 from datetime import datetime
 from types import SimpleNamespace
-from unittest.mock import patch
-
 import pytest
 
-from stock.infra.fred.fred_client import FredClient
+from stock.infra.cnn import fear_greed_client
+from stock.infra.cnn.fear_greed_client import CnnFearGreedClient
 
 
 @pytest.mark.parametrize(
@@ -22,15 +21,16 @@ from stock.infra.fred.fred_client import FredClient
         (100, "EXTREME GREED"),
     ],
 )
-def test_get_fear_and_greed_index_sets_condition_from_value(value, condition):
+def test_get_fear_and_greed_index_sets_condition_from_value(
+    value, condition, monkeypatch
+):
     updated_at = datetime(2026, 5, 31, 12, 0, 0)
-    client = FredClient.__new__(FredClient)
-
-    with patch(
-        "stock.infra.fred.fred_client.fear_and_greed.get",
-        return_value=SimpleNamespace(value=value, last_update=updated_at),
-    ):
-        result = client.get_fear_and_greed_index()
+    monkeypatch.setattr(
+        fear_greed_client.fear_and_greed,
+        "get",
+        lambda: SimpleNamespace(value=value, last_update=updated_at),
+    )
+    result = CnnFearGreedClient().get_fear_and_greed_index()
 
     assert result.value == value
     assert result.condition == condition

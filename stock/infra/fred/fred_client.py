@@ -1,40 +1,18 @@
-import fear_and_greed
 from fredapi import Fred
 
-from config import settings
-from stock.domain.market import FearAndGreedIndex, VIXIndex
-from stock.domain.adapter.overseas_index_client import IOverseasIndexClient
+from stock.domain.market import VIXIndex
+from stock.domain.port.vix_client import VixClient
 
 
-FEAR_AND_GREED_CONDITION_RANGES = (
-    (24, "EXTREME FEAR"),
-    (44, "FEAR"),
-    (55, "NEUTRAL"),
-    (75, "GREED"),
-    (100, "EXTREME GREED"),
-)
+class FredClient(VixClient):
+    """FRED VIX 시계열을 시장 지표 도메인 값으로 변환한다."""
 
-
-class FredClient(IOverseasIndexClient):
-    """FRED API 응답을 시장 지표 도메인 값으로 변환하는 어댑터."""
-
-    def __init__(self):
-        self.fred = Fred(api_key=settings.fred.api_key)
-
-    def get_fear_and_greed_index(self) -> FearAndGreedIndex:
-        fear_and_greed_index = fear_and_greed.get()
-        condition = next(
-            condition
-            for max_value, condition in FEAR_AND_GREED_CONDITION_RANGES
-            if fear_and_greed_index.value <= max_value
-        )
-        return FearAndGreedIndex(
-            value=fear_and_greed_index.value,
-            condition=condition,
-            updated_at=fear_and_greed_index.last_update,
-        )
+    def __init__(self, api_key: str):
+        self.fred = Fred(api_key=api_key)
 
     def get_vix_index(self, start_date: str, end_date: str):
+        """FRED VIXCLS 관측치에서 값이 없는 날을 제외해 반환한다."""
+
         vix_index = self.fred.get_series(
             "VIXCLS", observation_start=start_date, observation_end=end_date
         )

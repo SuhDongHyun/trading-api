@@ -1,85 +1,94 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock
+
 from pytest import approx
 
-from stock.infra.kis.kis_http_client import api_get, api_post
-from stock.infra.kis import kis_rate_limiter
+from config import KISSetting
+from stock.infra.kis.kis_http_client import KisHttpClient
+from stock.infra.kis.kis_rate_limiter import (
+    KIS_API_CALLS_PER_SECOND,
+    KIS_API_MIN_INTERVAL_SECONDS,
+    KIS_API_RATE_LIMIT_KEY,
+    KisRateLimiter,
+)
+
+
+class FakeLimiter:
+    def __init__(self):
+        self.try_acquire = Mock()
 
 
 class FakeResponse:
-    """HTTP 응답 객체의 raise_for_status 동작만 흉내낸다."""
-
     status_code = 200
+    url = "https://example.test/uapi/test"
+    text = "{}"
 
     def raise_for_status(self):
-        """테스트용 응답은 항상 성공으로 처리한다."""
+        return None
+
+
+def make_http_client(rate_limiter, get=None, post=None):
+    return KisHttpClient(
+        kis_settings=KISSetting(
+            base_url="https://example.test",
+            account_num="12345678",
+            account_code="01",
+            appkey="test-key",
+            appsecret="test-secret",
+        ),
+        token_manager=Mock(auth_headers=Mock(return_value={"authorization": "test"})),
+        rate_limiter=rate_limiter,
+        get=get or Mock(return_value=FakeResponse()),
+        post=post or Mock(return_value=FakeResponse()),
+    )
 
 
 class KISRateLimitTest(unittest.TestCase):
-    """KIS REST API 호출 제한 적용을 검증한다."""
+    """KIS 호출 제한 상태가 limiter 인스턴스 안에서 유지되는지 검증한다."""
 
     def test_kis_rate_limiter_uses_ten_calls_per_second(self):
-        """KIS API limiter는 초당 10건 제한을 사용한다."""
+        self.assertEqual(KIS_API_CALLS_PER_SECOND, 10)
 
-        self.assertEqual(kis_rate_limiter.KIS_API_CALLS_PER_SECOND, 10)
+    def test_kis_rate_limiter_blocks_until_slot_is_available(self):
+        limiter = FakeLimiter()
+        rate_limiter = KisRateLimiter(limiter=limiter)
 
-    @patch.object(kis_rate_limiter, "_limiter")
-    def test_kis_rate_limiter_blocks_until_slot_is_available(self, limiter):
-        """제한 초과 시 실패하지 않고 호출 가능할 때까지 대기한다."""
-
-        kis_rate_limiter.acquire_kis_api_slot()
+        rate_limiter.acquire()
 
         limiter.try_acquire.assert_called_once_with(
-            kis_rate_limiter.KIS_API_RATE_LIMIT_KEY,
-            blocking=True,
+            KIS_API_RATE_LIMIT_KEY, blocking=True
         )
 
-    @patch.object(kis_rate_limiter, "sleep")
-    @patch.object(kis_rate_limiter, "monotonic")
-    @patch.object(kis_rate_limiter, "_limiter")
-    def test_kis_rate_limiter_keeps_minimum_interval_between_requests(
-        self, limiter, monotonic, sleep
-    ):
-        """연속 호출 사이에는 KIS 권장 최소 간격 150ms를 둔다."""
+    def test_kis_rate_limiter_keeps_minimum_interval_between_requests(self):
+        limiter = FakeLimiter()
+        clock = Mock(side_effect=[100.00, 100.05, 100.15])
+        wait = Mock()
+        rate_limiter = KisRateLimiter(limiter=limiter, clock=clock, wait=wait)
 
-        kis_rate_limiter._last_request_at = None
-        monotonic.side_effect = [100.00, 100.05, 100.15]
+        rate_limiter.acquire()
+        rate_limiter.acquire()
 
-        kis_rate_limiter.acquire_kis_api_slot()
-        kis_rate_limiter.acquire_kis_api_slot()
+        self.assertEqual(KIS_API_MIN_INTERVAL_SECONDS, 0.15)
+        wait.assert_called_once_with(approx(0.10))
 
-        sleep.assert_called_once_with(approx(0.10))
+    def test_http_get_waits_for_rate_limit_slot_before_request(self):
+        rate_limiter = Mock()
+        get = Mock(return_value=FakeResponse())
+        http_client = make_http_client(rate_limiter, get=get)
 
-    @patch("stock.infra.kis.kis_http_client.acquire_kis_api_slot", create=True)
-    @patch("stock.infra.kis.kis_http_client.build_header")
-    @patch("stock.infra.kis.kis_http_client.get")
-    def test_api_get_waits_for_rate_limit_slot_before_request(
-        self, get, build_header, acquire
-    ):
-        """GET 호출 전에 KIS API rate limiter를 통과해야 한다."""
+        http_client.get(path="/uapi/test", params={"code": "005930"}, tr_id="TEST")
 
-        get.return_value = FakeResponse()
-        build_header.return_value = {"authorization": "Bearer token"}
-
-        api_get(path="/uapi/test", params={"code": "005930"}, tr_id="TEST")
-
-        acquire.assert_called_once_with()
+        rate_limiter.acquire.assert_called_once_with()
         get.assert_called_once()
 
-    @patch("stock.infra.kis.kis_http_client.acquire_kis_api_slot", create=True)
-    @patch("stock.infra.kis.kis_http_client.build_header")
-    @patch("stock.infra.kis.kis_http_client.post")
-    def test_api_post_waits_for_same_rate_limit_slot_before_request(
-        self, post, build_header, acquire
-    ):
-        """POST 호출도 GET과 같은 KIS API rate limiter를 통과해야 한다."""
+    def test_http_post_uses_the_same_rate_limiter(self):
+        rate_limiter = Mock()
+        post = Mock(return_value=FakeResponse())
+        http_client = make_http_client(rate_limiter, post=post)
 
-        post.return_value = FakeResponse()
-        build_header.return_value = {"authorization": "Bearer token"}
+        http_client.post(path="/uapi/test", body={"code": "005930"}, tr_id="TEST")
 
-        api_post(path="/uapi/test", body={"code": "005930"}, tr_id="TEST")
-
-        acquire.assert_called_once_with()
+        rate_limiter.acquire.assert_called_once_with()
         post.assert_called_once()
 
 

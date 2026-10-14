@@ -1,4 +1,4 @@
-from stock.domain.adapter.api_client import IApiClient
+from stock.domain.port.stock_quote_client import StockQuoteClient
 from stock.service.indicator.common import (
     resolve_base_indicator_date_range,
     resolve_windowed_indicator_date_range,
@@ -19,15 +19,13 @@ from stock.service.indicator.rsi import (
 class StockQuoteService:
     """시세 조회 결과를 기반으로 기술적 지표와 매매 참고 신호를 계산한다."""
 
-    def __init__(self, api_client: IApiClient):
-        """시세 데이터를 가져올 API 클라이언트를 주입받는다."""
-
-        self.api_client = api_client
+    def __init__(self, quote_client: StockQuoteClient):
+        self.quote_client = quote_client
 
     def get_stock_info(self, market: str, code: str):
         """시장 구분과 종목 코드로 현재 시세 정보를 조회한다."""
 
-        return self.api_client.get_stock_info(market, code)
+        return self.quote_client.get_stock_info(market, code)
 
     def get_daily_stock_prices(
         self,
@@ -43,7 +41,7 @@ class StockQuoteService:
             start_date, end_date
         )
 
-        return self.api_client.get_daily_stock_prices(
+        return self.quote_client.get_daily_stock_prices(
             market=market,
             code=code,
             start_date=valid_start_date,

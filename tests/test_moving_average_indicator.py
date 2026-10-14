@@ -7,7 +7,7 @@ from stock.interface.schema.stock_quote import MovingAverageRequest
 from stock.service.stock_quote_service import StockQuoteService
 
 
-class FakeApiClient:
+class FakeQuoteClient:
     """이동평균 계산에 사용할 고정 일봉 가격 API 클라이언트."""
 
     def __init__(self):
@@ -46,7 +46,7 @@ class FakeApiClient:
         )
 
 
-class CappedApiClient(FakeApiClient):
+class CappedQuoteClient(FakeQuoteClient):
     """여러 과거 구간 조회가 필요한 상황을 재현하는 API 클라이언트."""
 
     def get_daily_stock_prices(
@@ -73,8 +73,8 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
     def test_service_uses_trading_dates_to_fetch_history_for_single_window(self):
         """단일 조회로 충분한 이동평균 선행 이력을 확보하는지 검증한다."""
 
-        api_client = FakeApiClient()
-        service = StockQuoteService(api_client)
+        quote_client = FakeQuoteClient()
+        service = StockQuoteService(quote_client)
 
         result = service.get_moving_average(
             market="J",
@@ -86,7 +86,7 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            api_client.calls,
+            quote_client.calls,
             [("J", "005930", "20240401", "20240404", True)],
         )
         self.assertEqual(
@@ -99,8 +99,8 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
     def test_service_fetches_exact_daily_window_history(self):
         """일봉 이동평균 계산에 필요한 거래일 이력만 조회하는지 검증한다."""
 
-        api_client = CappedApiClient()
-        service = StockQuoteService(api_client)
+        quote_client = CappedQuoteClient()
+        service = StockQuoteService(quote_client)
 
         result = service.get_moving_average(
             market="J",
@@ -112,7 +112,7 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            api_client.calls,
+            quote_client.calls,
             [("J", "005930", "20240404", "20240411", True)],
         )
         self.assertEqual(
@@ -132,7 +132,7 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
             adjusted_price=True,
             window=3,
         )
-        service = StockQuoteService(FakeApiClient())
+        service = StockQuoteService(FakeQuoteClient())
 
         response = get_moving_average(request, stock_quote_service=service)
 
@@ -142,7 +142,7 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
     def test_service_rejects_non_positive_window(self):
         """이동평균 window가 양수가 아니면 예외가 발생하는지 검증한다."""
 
-        service = StockQuoteService(FakeApiClient())
+        service = StockQuoteService(FakeQuoteClient())
 
         with self.assertRaises(ValueError):
             service.get_moving_average(
@@ -157,7 +157,7 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
     def test_macd_warmup_uses_current_price_as_price_scale(self):
         """MACD EMA warmup은 RSI 범위가 아닌 현재가 스케일로 seed error를 잡는다."""
 
-        class MacdApiClient(FakeApiClient):
+        class MacdQuoteClient(FakeQuoteClient):
             def __init__(self):
                 super().__init__()
                 self.stock_info_calls = []
@@ -187,8 +187,8 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
                     price_diff_rate=1.4,
                 )
 
-        api_client = MacdApiClient()
-        service = StockQuoteService(api_client)
+        quote_client = MacdQuoteClient()
+        service = StockQuoteService(quote_client)
 
         with patch(
             "stock.service.stock_quote_service.calculate_ema_warmup_days"
@@ -205,13 +205,13 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
                 ema_long_window=26,
             )
 
-        self.assertEqual(api_client.stock_info_calls, [("J", "005930")])
+        self.assertEqual(quote_client.stock_info_calls, [("J", "005930")])
         warmup.assert_called_once_with(26, max_seed_error=14000.0)
 
     def test_macd_warmup_accepts_current_price_string_from_adapter(self):
         """KIS adapter가 문자열 현재가를 넘겨도 MACD warmup 스케일을 계산한다."""
 
-        class StringPriceMacdApiClient(FakeApiClient):
+        class StringPriceMacdQuoteClient(FakeQuoteClient):
             def get_stock_info(self, market, code):
                 return StockInfo(
                     market_name="KOSPI",
@@ -236,7 +236,7 @@ class MovingAverageIndicatorFeatureTest(unittest.TestCase):
                     price_diff_rate=1.4,
                 )
 
-        service = StockQuoteService(StringPriceMacdApiClient())
+        service = StockQuoteService(StringPriceMacdQuoteClient())
 
         with patch(
             "stock.service.stock_quote_service.calculate_ema_warmup_days"
