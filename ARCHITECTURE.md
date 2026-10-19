@@ -91,7 +91,7 @@ MarketIndexService가 기능별 포트를 직접 호출합니다. KOSPI/KOSDAQ �
 
 요청은 `/bitcoin` controller → 역할별 service → domain port → Upbit 어댑터 → 공통 `UpbitHttpClient` 흐름으로 처리됩니다. 어댑터는 응답 JSON을 dataclass로 바꾸고 controller가 Pydantic 응답 schema로 변환합니다. `market` 목록은 쉼표로 합쳐 Upbit에 전달합니다.
 
-Upbit의 Quotation REST 호출 제한은 IP 기준 그룹별 초당 10회입니다. 페어 목록은 `market`, 체결은 `trade`, 두 현재가 API는 공유 `ticker`, 호가와 호가 정책은 공유 `orderbook` 그룹을 사용합니다. 공개 API를 사용하므로 인증·Origin 헤더를 붙이지 않습니다. 404는 `NotFoundError`(404), 429·418 등 나머지 Upbit HTTP 오류는 `ExternalApiError`(502)로 변환합니다. 진단 정보는 오류 본문의 이름과 메시지를 포함하고 URL query는 기록하지 않습니다.
+Upbit의 Quotation REST 호출 제한은 IP 기준 그룹별 초당 10회입니다. 페어 목록은 `market`, 캔들 여섯 종류는 공유 `candle`, 체결은 `trade`, 두 현재가 API는 공유 `ticker`, 호가와 호가 정책은 공유 `orderbook` 그룹을 사용합니다. 공개 API를 사용하므로 인증·Origin 헤더를 붙이지 않습니다. 404는 `NotFoundError`(404), 429·418 등 나머지 Upbit HTTP 오류는 `ExternalApiError`(502)로 변환합니다. 진단 정보는 오류 본문의 이름과 메시지를 포함하고 URL query는 기록하지 않습니다.
 
 ### 5.5 입력 검증과 오류 응답
 
@@ -125,6 +125,12 @@ Pydantic 스키마가 날짜 형식과 실제 날짜, 날짜 순서, 지표 wind
 | POST | /bitcoin/orderbook | 실시간 호가 |
 | POST | /bitcoin/orderbook/instruments | 페어별 호가 단위 정책 |
 | POST | /bitcoin/trades | 최근 페어 체결 내역 |
+| POST | /bitcoin/candles/seconds | 초 캔들 |
+| POST | /bitcoin/candles/minutes/{unit} | 분 캔들(1, 3, 5, 10, 15, 30, 60, 240) |
+| POST | /bitcoin/candles/days | 일 캔들(선택적 KRW 종가 환산) |
+| POST | /bitcoin/candles/weeks | 주 캔들 |
+| POST | /bitcoin/candles/months | 월 캔들 |
+| POST | /bitcoin/candles/years | 연 캔들 |
 
 국채 maturity 값은 korea-1y, korea-3y, korea-5y, korea-10y, us-1y, us-10y입니다.
 

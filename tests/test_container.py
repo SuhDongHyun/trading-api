@@ -39,6 +39,7 @@ def test_upbit_transport_and_limiter_are_shared_across_adapters():
         container.orderbook_service()._orderbook_client,
         container.orderbook_instrument_service()._instrument_client,
         container.trade_service()._trade_client,
+        container.candle_service()._candle_client,
     ]
     assert all(adapter._http_client is http_client for adapter in service_adapters)
     assert all(
@@ -50,6 +51,7 @@ def test_upbit_transport_and_limiter_are_shared_across_adapters():
             container.upbit_orderbook_client(),
             container.upbit_orderbook_instrument_client(),
             container.upbit_trade_client(),
+            container.upbit_candle_client(),
         )
     )
     assert http_client._rate_limiter is container.upbit_rate_limiter()

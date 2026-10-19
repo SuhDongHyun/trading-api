@@ -2,10 +2,17 @@ from dependency_injector.wiring import Provide, inject
 from fastapi import APIRouter, Depends
 
 from bitcoin.interface.schema.quotation import (
+    CandleResponse,
+    CandlesRequest,
+    DayCandlesRequest,
+    DayCandleResponse,
+    MinuteCandleUnit,
+    MinuteCandleResponse,
     OrderbookInstrumentResponse,
     OrderbookInstrumentsRequest,
     OrderbookRequest,
     OrderbookResponse,
+    PeriodCandleResponse,
     QuoteTickerRequest,
     TickerRequest,
     TickerResponse,
@@ -15,6 +22,7 @@ from bitcoin.interface.schema.quotation import (
     TradingPairsRequest,
 )
 from bitcoin.service.quotation_services import (
+    CandleService,
     OrderbookInstrumentService,
     OrderbookService,
     QuoteTickerService,
@@ -95,3 +103,79 @@ def get_trades(
         days_ago=request.days_ago,
     )
     return [TradeResponse.model_validate(value) for value in values]
+
+
+@router.post("/candles/seconds", response_model=list[CandleResponse])
+@inject
+def get_seconds_candles(
+    request: CandlesRequest,
+    service: CandleService = Depends(Provide[Container.candle_service]),
+):
+    values = service.get_seconds_candles(
+        market=request.market, to=request.to, count=request.count
+    )
+    return [CandleResponse.model_validate(value) for value in values]
+
+
+@router.post("/candles/minutes/{unit}", response_model=list[MinuteCandleResponse])
+@inject
+def get_minute_candles(
+    unit: MinuteCandleUnit,
+    request: CandlesRequest,
+    service: CandleService = Depends(Provide[Container.candle_service]),
+):
+    values = service.get_minute_candles(
+        int(unit), market=request.market, to=request.to, count=request.count
+    )
+    return [MinuteCandleResponse.model_validate(value) for value in values]
+
+
+@router.post("/candles/days", response_model=list[DayCandleResponse])
+@inject
+def get_day_candles(
+    request: DayCandlesRequest,
+    service: CandleService = Depends(Provide[Container.candle_service]),
+):
+    values = service.get_day_candles(
+        market=request.market,
+        to=request.to,
+        count=request.count,
+        converting_price_unit=request.converting_price_unit,
+    )
+    return [DayCandleResponse.model_validate(value) for value in values]
+
+
+@router.post("/candles/weeks", response_model=list[PeriodCandleResponse])
+@inject
+def get_week_candles(
+    request: CandlesRequest,
+    service: CandleService = Depends(Provide[Container.candle_service]),
+):
+    values = service.get_week_candles(
+        market=request.market, to=request.to, count=request.count
+    )
+    return [PeriodCandleResponse.model_validate(value) for value in values]
+
+
+@router.post("/candles/months", response_model=list[PeriodCandleResponse])
+@inject
+def get_month_candles(
+    request: CandlesRequest,
+    service: CandleService = Depends(Provide[Container.candle_service]),
+):
+    values = service.get_month_candles(
+        market=request.market, to=request.to, count=request.count
+    )
+    return [PeriodCandleResponse.model_validate(value) for value in values]
+
+
+@router.post("/candles/years", response_model=list[PeriodCandleResponse])
+@inject
+def get_year_candles(
+    request: CandlesRequest,
+    service: CandleService = Depends(Provide[Container.candle_service]),
+):
+    values = service.get_year_candles(
+        market=request.market, to=request.to, count=request.count
+    )
+    return [PeriodCandleResponse.model_validate(value) for value in values]

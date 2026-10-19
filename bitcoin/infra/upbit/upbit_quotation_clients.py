@@ -1,6 +1,8 @@
 from collections.abc import Sequence
+from typing import TypeVar
 
 from bitcoin.domain.port.quotation_clients import (
+    CandleClient,
     OrderbookClient,
     OrderbookInstrumentClient,
     QuoteTickerClient,
@@ -9,16 +11,22 @@ from bitcoin.domain.port.quotation_clients import (
     TradingPairClient,
 )
 from bitcoin.domain.quotation import (
+    Candle,
+    DayCandle,
     MarketEvent,
     MarketEventCaution,
     Orderbook,
     OrderbookInstrument,
     OrderbookUnit,
+    MinuteCandle,
+    PeriodCandle,
     Ticker,
     Trade,
     TradingPair,
 )
 from bitcoin.infra.upbit.upbit_http_client import UpbitHttpClient
+
+CandleT = TypeVar("CandleT", bound=Candle)
 
 
 def _ticker_from_response(body: dict) -> Ticker:
@@ -196,3 +204,100 @@ class UpbitTradeClient(TradeClient):
             Trade(**{field: item[field] for field in Trade.__dataclass_fields__})
             for item in response.json()
         ]
+
+
+def _candles_from_response(
+    body: list[dict], candle_type: type[CandleT]
+) -> list[CandleT]:
+    """공식 candle 필드만 dataclass로 옮기고 알 수 없는 필드는 무시한다."""
+
+    return [
+        candle_type(
+            **{
+                field: item[field]
+                for field in candle_type.__dataclass_fields__
+                if field in item
+            }
+        )
+        for item in body
+    ]
+
+
+class UpbitCandleClient(CandleClient):
+    """초·분·일·주·월·연 캔들 API 어댑터."""
+
+    def __init__(self, http_client: UpbitHttpClient):
+        self._http_client = http_client
+
+    def _get_candles(
+        self,
+        path: str,
+        candle_type: type[CandleT],
+        params: dict[str, str | int],
+    ) -> list[CandleT]:
+        response = self._http_client.get(path, params=params, rate_limit_group="candle")
+        return _candles_from_response(response.json(), candle_type)
+
+    @staticmethod
+    def _params(market: str, to: str | None, count: int) -> dict[str, str | int]:
+        params: dict[str, str | int] = {"market": market, "count": count}
+        if to is not None:
+            params["to"] = to
+        return params
+
+    def get_seconds_candles(
+        self, market: str, to: str | None = None, count: int = 1
+    ) -> list[Candle]:
+        return self._get_candles(
+            "/v1/candles/seconds",
+            Candle,
+            self._params(market, to, count),
+        )
+
+    def get_minute_candles(
+        self, unit: int, market: str, to: str | None = None, count: int = 1
+    ) -> list[MinuteCandle]:
+        return self._get_candles(
+            f"/v1/candles/minutes/{unit}",
+            MinuteCandle,
+            self._params(market, to, count),
+        )
+
+    def get_day_candles(
+        self,
+        market: str,
+        to: str | None = None,
+        count: int = 1,
+        converting_price_unit: str | None = None,
+    ) -> list[DayCandle]:
+        params = self._params(market, to, count)
+        if converting_price_unit is not None:
+            params["converting_price_unit"] = converting_price_unit
+        return self._get_candles("/v1/candles/days", DayCandle, params)
+
+    def get_week_candles(
+        self, market: str, to: str | None = None, count: int = 1
+    ) -> list[PeriodCandle]:
+        return self._get_candles(
+            "/v1/candles/weeks",
+            PeriodCandle,
+            self._params(market, to, count),
+        )
+
+    def get_month_candles(
+        self, market: str, to: str | None = None, count: int = 1
+    ) -> list[PeriodCandle]:
+        return self._get_candles(
+            "/v1/candles/months",
+            PeriodCandle,
+            self._params(market, to, count),
+        )
+
+    def get_year_candles(
+        self, market: str, to: str | None = None, count: int = 1
+    ) -> list[PeriodCandle]:
+        return self._get_candles(
+            "/v1/candles/years",
+            PeriodCandle,
+            self._params(market, to, count),
+        )

@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
+from enum import IntEnum
 import re
 from typing import Literal
 
@@ -200,3 +201,85 @@ class TradeResponse(ResponseModel):
     change_price: float
     ask_bid: Literal["ASK", "BID"]
     sequential_id: int
+
+
+class CandlesRequest(RequestModel):
+    """Upbit 캔들 조회 조건."""
+
+    market: str = Field(pattern=MARKET_PATTERN)
+    to: str | None = Field(
+        default=None,
+        description="ISO 8601 형식의 종료 시각입니다.",
+    )
+    count: int = Field(default=1, ge=1, le=200)
+
+    @field_validator("to")
+    @classmethod
+    def validate_to(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if not re.fullmatch(
+            r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$",
+            value,
+        ):
+            raise ValueError("to는 ISO 8601 datetime 형식이어야 합니다.")
+        try:
+            datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError as error:
+            raise ValueError("to는 유효한 ISO 8601 datetime이어야 합니다.") from error
+        return value
+
+
+class DayCandlesRequest(CandlesRequest):
+    """일 캔들 조회와 선택적 원화 종가 환산 조건."""
+
+    converting_price_unit: Literal["KRW"] | None = None
+
+
+class MinuteCandleUnit(IntEnum):
+    """Upbit에서 허용하는 분 캔들 단위."""
+
+    ONE = 1
+    THREE = 3
+    FIVE = 5
+    TEN = 10
+    FIFTEEN = 15
+    THIRTY = 30
+    SIXTY = 60
+    TWO_FORTY = 240
+
+
+class CandleResponse(ResponseModel):
+    """초 캔들과 다른 주기의 공통 캔들 필드."""
+
+    market: str
+    candle_date_time_utc: str
+    candle_date_time_kst: str
+    opening_price: float
+    high_price: float
+    low_price: float
+    trade_price: float
+    timestamp: int
+    candle_acc_trade_price: float
+    candle_acc_trade_volume: float
+
+
+class MinuteCandleResponse(CandleResponse):
+    """분 캔들의 조회 단위."""
+
+    unit: int
+
+
+class DayCandleResponse(CandleResponse):
+    """일 캔들의 전일 종가 기준 변동 정보."""
+
+    prev_closing_price: float
+    change_price: float
+    change_rate: float
+    converted_trade_price: float | None = None
+
+
+class PeriodCandleResponse(CandleResponse):
+    """주·월·연 캔들의 집계 기간 시작일."""
+
+    first_day_of_period: str

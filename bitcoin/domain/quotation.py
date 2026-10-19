@@ -109,3 +109,43 @@ class Trade:
     change_price: float
     ask_bid: str
     sequential_id: int
+
+
+@dataclass
+class Candle:
+    """Upbit 캔들의 공통 시세 및 거래량 정보."""
+
+    market: str
+    candle_date_time_utc: str
+    candle_date_time_kst: str
+    opening_price: float
+    high_price: float
+    low_price: float
+    trade_price: float
+    timestamp: int
+    candle_acc_trade_price: float
+    candle_acc_trade_volume: float
+
+
+@dataclass
+class MinuteCandle(Candle):
+    """분 캔들의 조회 단위."""
+
+    unit: int
+
+
+@dataclass
+class DayCandle(Candle):
+    """일 캔들의 전일 종가 기준 변동 정보."""
+
+    prev_closing_price: float
+    change_price: float
+    change_rate: float
+    converted_trade_price: float | None = None
+
+
+@dataclass
+class PeriodCandle(Candle):
+    """주·월·연 캔들의 집계 기간 시작일."""
+
+    first_day_of_period: str
