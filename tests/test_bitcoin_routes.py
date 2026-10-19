@@ -6,11 +6,15 @@ from fastapi.testclient import TestClient
 
 import main
 from bitcoin.domain.quotation import (
+    Candle,
+    DayCandle,
     MarketEvent,
     MarketEventCaution,
     Orderbook,
     OrderbookInstrument,
     OrderbookUnit,
+    MinuteCandle,
+    PeriodCandle,
     Ticker,
     Trade,
     TradingPair,
@@ -228,3 +232,136 @@ def test_bitcoin_routes_map_upbit_app_errors_to_their_http_status():
 
     assert not_found.status_code == 404
     assert upstream_error.status_code == 502
+
+
+def make_candle():
+    return Candle(
+        market="KRW-BTC",
+        candle_date_time_utc="2025-06-30T23:59:59",
+        candle_date_time_kst="2025-07-01T08:59:59",
+        opening_price=145794000,
+        high_price=145794000,
+        low_price=145759000,
+        trade_price=145759000,
+        timestamp=1751327999833,
+        candle_acc_trade_price=185042,
+        candle_acc_trade_volume=0.0013,
+    )
+
+
+def test_bitcoin_candle_routes_convert_all_six_shapes_and_forward_parameters():
+    service = Mock()
+    service.get_seconds_candles.return_value = [make_candle()]
+    service.get_minute_candles.return_value = [
+        MinuteCandle(**vars(make_candle()), unit=5)
+    ]
+    service.get_day_candles.return_value = [
+        DayCandle(
+            **vars(make_candle()),
+            prev_closing_price=147996000,
+            change_price=-2237000,
+            change_rate=-0.0151152734,
+            converted_trade_price=145759000,
+        )
+    ]
+    period_candle = PeriodCandle(
+        **vars(make_candle()), first_day_of_period="2025-06-30"
+    )
+    service.get_week_candles.return_value = [period_candle]
+    service.get_month_candles.return_value = [period_candle]
+    service.get_year_candles.return_value = [period_candle]
+
+    with main.container.candle_service.override(providers.Object(service)):
+        with TestClient(main.app) as client:
+            seconds = client.post(
+                "/bitcoin/candles/seconds",
+                json={"market": "KRW-BTC", "count": 2},
+            )
+            minutes = client.post(
+                "/bitcoin/candles/minutes/5",
+                json={
+                    "market": "KRW-BTC",
+                    "to": "2025-07-01T00:00:00Z",
+                    "count": 3,
+                },
+            )
+            days = client.post(
+                "/bitcoin/candles/days",
+                json={
+                    "market": "KRW-BTC",
+                    "count": 4,
+                    "converting_price_unit": "KRW",
+                },
+            )
+            weeks = client.post("/bitcoin/candles/weeks", json={"market": "KRW-BTC"})
+            months = client.post("/bitcoin/candles/months", json={"market": "KRW-BTC"})
+            years = client.post("/bitcoin/candles/years", json={"market": "KRW-BTC"})
+
+    assert seconds.status_code == minutes.status_code == days.status_code == 200
+    assert weeks.status_code == months.status_code == years.status_code == 200
+    assert seconds.json()[0]["candle_date_time_utc"] == "2025-06-30T23:59:59"
+    assert minutes.json()[0]["unit"] == 5
+    assert days.json()[0]["prev_closing_price"] == 147996000
+    assert days.json()[0]["converted_trade_price"] == 145759000
+    assert weeks.json()[0]["first_day_of_period"] == "2025-06-30"
+    assert months.json()[0]["first_day_of_period"] == "2025-06-30"
+    assert years.json()[0]["first_day_of_period"] == "2025-06-30"
+    service.get_seconds_candles.assert_called_once_with(
+        market="KRW-BTC", to=None, count=2
+    )
+    service.get_minute_candles.assert_called_once_with(
+        5, market="KRW-BTC", to="2025-07-01T00:00:00Z", count=3
+    )
+    service.get_day_candles.assert_called_once_with(
+        market="KRW-BTC", to=None, count=4, converting_price_unit="KRW"
+    )
+    service.get_week_candles.assert_called_once_with(market="KRW-BTC", to=None, count=1)
+    service.get_month_candles.assert_called_once_with(
+        market="KRW-BTC", to=None, count=1
+    )
+    service.get_year_candles.assert_called_once_with(market="KRW-BTC", to=None, count=1)
+
+
+def test_bitcoin_candle_routes_reject_invalid_input_with_422():
+    service = Mock()
+    with main.container.candle_service.override(providers.Object(service)):
+        with TestClient(main.app) as client:
+            missing_market = client.post("/bitcoin/candles/seconds", json={})
+            malformed_market = client.post(
+                "/bitcoin/candles/seconds", json={"market": "krw-btc"}
+            )
+            zero_count = client.post(
+                "/bitcoin/candles/seconds",
+                json={"market": "KRW-BTC", "count": 0},
+            )
+            excessive_count = client.post(
+                "/bitcoin/candles/seconds",
+                json={"market": "KRW-BTC", "count": 201},
+            )
+            invalid_to = client.post(
+                "/bitcoin/candles/seconds",
+                json={"market": "KRW-BTC", "to": "2025-02-30T00:00:00"},
+            )
+            invalid_unit = client.post(
+                "/bitcoin/candles/minutes/2", json={"market": "KRW-BTC"}
+            )
+            invalid_converting_unit = client.post(
+                "/bitcoin/candles/days",
+                json={"market": "KRW-BTC", "converting_price_unit": "BTC"},
+            )
+
+    assert all(
+        response.status_code == 422
+        for response in (
+            missing_market,
+            malformed_market,
+            zero_count,
+            excessive_count,
+            invalid_to,
+            invalid_unit,
+            invalid_converting_unit,
+        )
+    )
+    service.get_seconds_candles.assert_not_called()
+    service.get_minute_candles.assert_not_called()
+    service.get_day_candles.assert_not_called()

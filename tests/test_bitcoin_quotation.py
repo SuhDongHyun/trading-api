@@ -2,16 +2,21 @@ from unittest.mock import Mock
 from typing import cast
 
 from bitcoin.domain.quotation import (
+    Candle,
+    DayCandle,
     MarketEvent,
     MarketEventCaution,
     Orderbook,
     OrderbookInstrument,
     OrderbookUnit,
+    MinuteCandle,
+    PeriodCandle,
     Ticker,
     Trade,
     TradingPair,
 )
 from bitcoin.infra.upbit.upbit_quotation_clients import (
+    UpbitCandleClient,
     UpbitOrderbookClient,
     UpbitOrderbookInstrumentClient,
     UpbitQuoteTickerClient,
@@ -21,6 +26,7 @@ from bitcoin.infra.upbit.upbit_quotation_clients import (
 )
 from bitcoin.infra.upbit.upbit_http_client import UpbitHttpClient
 from bitcoin.service.quotation_services import (
+    CandleService,
     OrderbookInstrumentService,
     OrderbookService,
     QuoteTickerService,
@@ -270,6 +276,7 @@ def test_quotation_services_forward_requests_to_role_ports():
     orderbook_client = Mock()
     instrument_client = Mock()
     trade_client = Mock()
+    candle_client = Mock()
 
     TradingPairService(pair_client).get_trading_pairs(True)
     TickerService(ticker_client).get_tickers(["KRW-BTC"])
@@ -277,6 +284,13 @@ def test_quotation_services_forward_requests_to_role_ports():
     OrderbookService(orderbook_client).get_orderbooks(["KRW-BTC"], "0", 30)
     OrderbookInstrumentService(instrument_client).get_orderbook_instruments(["KRW-BTC"])
     TradeService(trade_client).get_trades("KRW-BTC", count=2)
+    candle_service = CandleService(candle_client)
+    candle_service.get_seconds_candles("KRW-BTC", "2025-07-01T00:00:00Z", 2)
+    candle_service.get_minute_candles(5, "KRW-BTC", "2025-07-01T00:00:00Z", 3)
+    candle_service.get_day_candles("KRW-BTC", None, 4, "KRW")
+    candle_service.get_week_candles("KRW-BTC", None, 5)
+    candle_service.get_month_candles("KRW-BTC", None, 6)
+    candle_service.get_year_candles("KRW-BTC", None, 7)
 
     pair_client.get_trading_pairs.assert_called_once_with(True)
     ticker_client.get_tickers.assert_called_once_with(["KRW-BTC"])
@@ -284,3 +298,96 @@ def test_quotation_services_forward_requests_to_role_ports():
     orderbook_client.get_orderbooks.assert_called_once_with(["KRW-BTC"], "0", 30)
     instrument_client.get_orderbook_instruments.assert_called_once_with(["KRW-BTC"])
     trade_client.get_trades.assert_called_once_with("KRW-BTC", None, 2, None, None)
+    candle_client.get_seconds_candles.assert_called_once_with(
+        "KRW-BTC", "2025-07-01T00:00:00Z", 2
+    )
+    candle_client.get_minute_candles.assert_called_once_with(
+        5, "KRW-BTC", "2025-07-01T00:00:00Z", 3
+    )
+    candle_client.get_day_candles.assert_called_once_with("KRW-BTC", None, 4, "KRW")
+    candle_client.get_week_candles.assert_called_once_with("KRW-BTC", None, 5)
+    candle_client.get_month_candles.assert_called_once_with("KRW-BTC", None, 6)
+    candle_client.get_year_candles.assert_called_once_with("KRW-BTC", None, 7)
+
+
+BASE_CANDLE_BODY = {
+    "market": "KRW-BTC",
+    "candle_date_time_utc": "2025-06-30T23:59:59",
+    "candle_date_time_kst": "2025-07-01T08:59:59",
+    "opening_price": 145794000,
+    "high_price": 145794000,
+    "low_price": 145759000,
+    "trade_price": 145759000,
+    "timestamp": 1751327999833,
+    "candle_acc_trade_price": 185042,
+    "candle_acc_trade_volume": 0.0013,
+    "future_field": "ignored",
+}
+
+
+def test_candle_adapter_maps_each_upbit_shape_and_calls_once_per_request():
+    http = RecordingHttpClient([BASE_CANDLE_BODY])
+    client = UpbitCandleClient(http_client_double(http))
+
+    seconds = client.get_seconds_candles("KRW-BTC", count=2)
+    http.body = [{**BASE_CANDLE_BODY, "unit": 5}]
+    minutes = client.get_minute_candles(
+        5, "KRW-BTC", to="2025-07-01T00:00:00Z", count=3
+    )
+    http.body = [
+        {
+            **BASE_CANDLE_BODY,
+            "prev_closing_price": 147996000,
+            "change_price": -2237000,
+            "change_rate": -0.0151152734,
+            "converted_trade_price": 145759000,
+        }
+    ]
+    days = client.get_day_candles("KRW-BTC", count=4, converting_price_unit="KRW")
+    http.body = [{**BASE_CANDLE_BODY, "first_day_of_period": "2025-06-30"}]
+    weeks = client.get_week_candles("KRW-BTC", count=5)
+    months = client.get_month_candles("KRW-BTC", count=6)
+    years = client.get_year_candles("KRW-BTC", count=7)
+
+    base_candle = {
+        field: value
+        for field, value in BASE_CANDLE_BODY.items()
+        if field != "future_field"
+    }
+    assert seconds == [Candle(**base_candle)]
+    assert minutes == [MinuteCandle(**base_candle, unit=5)]
+    assert days == [
+        DayCandle(
+            **base_candle,
+            prev_closing_price=147996000,
+            change_price=-2237000,
+            change_rate=-0.0151152734,
+            converted_trade_price=145759000,
+        )
+    ]
+    period = PeriodCandle(**base_candle, first_day_of_period="2025-06-30")
+    assert weeks == months == years == [period]
+    assert http.calls == [
+        ("/v1/candles/seconds", {"market": "KRW-BTC", "count": 2}, "candle"),
+        (
+            "/v1/candles/minutes/5",
+            {
+                "market": "KRW-BTC",
+                "count": 3,
+                "to": "2025-07-01T00:00:00Z",
+            },
+            "candle",
+        ),
+        (
+            "/v1/candles/days",
+            {
+                "market": "KRW-BTC",
+                "count": 4,
+                "converting_price_unit": "KRW",
+            },
+            "candle",
+        ),
+        ("/v1/candles/weeks", {"market": "KRW-BTC", "count": 5}, "candle"),
+        ("/v1/candles/months", {"market": "KRW-BTC", "count": 6}, "candle"),
+        ("/v1/candles/years", {"market": "KRW-BTC", "count": 7}, "candle"),
+    ]

@@ -3,6 +3,7 @@ from dependency_injector import containers, providers
 from config import settings
 from bitcoin.infra.upbit.upbit_http_client import UpbitHttpClient
 from bitcoin.infra.upbit.upbit_quotation_clients import (
+    UpbitCandleClient,
     UpbitOrderbookClient,
     UpbitOrderbookInstrumentClient,
     UpbitQuoteTickerClient,
@@ -12,6 +13,7 @@ from bitcoin.infra.upbit.upbit_quotation_clients import (
 )
 from bitcoin.infra.upbit.upbit_rate_limiter import UpbitRateLimiter
 from bitcoin.service.quotation_services import (
+    CandleService,
     OrderbookInstrumentService,
     OrderbookService,
     QuoteTickerService,
@@ -83,6 +85,9 @@ class Container(containers.DeclarativeContainer):
     upbit_trade_client = providers.Factory(
         UpbitTradeClient, http_client=upbit_http_client
     )
+    upbit_candle_client = providers.Factory(
+        UpbitCandleClient, http_client=upbit_http_client
+    )
 
     kis_account_client = providers.Factory(
         KisAccountClient, http_client=kis_http_client, kis_settings=kis_settings
@@ -126,6 +131,7 @@ class Container(containers.DeclarativeContainer):
         instrument_client=upbit_orderbook_instrument_client,
     )
     trade_service = providers.Factory(TradeService, trade_client=upbit_trade_client)
+    candle_service = providers.Factory(CandleService, candle_client=upbit_candle_client)
     market_index_service = providers.Factory(
         MarketIndexService,
         domestic_market_client=kis_domestic_market_index_client,

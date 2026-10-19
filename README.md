@@ -6,7 +6,7 @@
 
 - 계좌 보유 종목과 계좌 요약 조회
 - 국내 종목 현재가와 일봉 시계열 조회
-- Upbit 페어 목록, 현재가, 호가 정책, 호가와 최근 체결 내역 조회
+- Upbit 페어 목록, 현재가, 호가 정책, 호가, 최근 체결 내역과 초·분·일·주·월·연 캔들 조회
 - 일봉 가격을 이용한 이동평균, RSI, RSI signal, MACD, MACD signal 계산
 - KOSPI, KOSDAQ, S&P 500, VKOSPI, VIX, 공포탐욕지수 조회
 - USD/KRW 환율과 한국·미국 국채 수익률 조회
@@ -88,6 +88,16 @@ curl -X POST http://localhost:9999/bitcoin/orderbook \
   -d '{"markets":["KRW-BTC"],"level":"0","count":10}'
 ```
 
+### Upbit 캔들 조회
+
+```bash
+curl -X POST http://localhost:9999/bitcoin/candles/minutes/5 \
+  -H "Content-Type: application/json" \
+  -d '{"market":"KRW-BTC","to":"2025-07-01T00:00:00Z","count":200}'
+```
+
+캔들 요청은 `market`을 필수로 받으며 `count`는 1~200입니다. `to`는 ISO 8601 datetime이고, 분 단위 경로는 1, 3, 5, 10, 15, 30, 60, 240 중 하나를 사용합니다. 일 캔들 요청에는 선택적으로 `converting_price_unit: "KRW"`를 지정할 수 있습니다. 각 요청은 Upbit를 한 번 호출하며 페이지네이션은 하지 않습니다.
+
 ## 엔드포인트
 
 | Method | Path | 설명 |
@@ -116,6 +126,12 @@ curl -X POST http://localhost:9999/bitcoin/orderbook \
 | POST | `/bitcoin/orderbook` | 페어 호가 |
 | POST | `/bitcoin/orderbook/instruments` | 페어별 호가 정책 |
 | POST | `/bitcoin/trades` | 최근 페어 체결 내역 |
+| POST | `/bitcoin/candles/seconds` | 초 캔들 |
+| POST | `/bitcoin/candles/minutes/{unit}` | 분 캔들(허용 단위: 1, 3, 5, 10, 15, 30, 60, 240) |
+| POST | `/bitcoin/candles/days` | 일 캔들(선택적 KRW 종가 환산) |
+| POST | `/bitcoin/candles/weeks` | 주 캔들 |
+| POST | `/bitcoin/candles/months` | 월 캔들 |
+| POST | `/bitcoin/candles/years` | 연 캔들 |
 
 국채 만기 값은 `korea-1y`, `korea-3y`, `korea-5y`, `korea-10y`, `us-1y`, `us-10y`입니다. 날짜 입력은 YYYYMMDD 형식의 실제 날짜여야 하며, 잘못된 요청은 Pydantic 검증 오류(422)로 응답합니다.
 

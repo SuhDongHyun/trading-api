@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 
 from bitcoin.domain.port.quotation_clients import (
+    CandleClient,
     OrderbookClient,
     OrderbookInstrumentClient,
     QuoteTickerClient,
@@ -75,3 +76,38 @@ class TradeService:
         days_ago: int | None = None,
     ):
         return self._trade_client.get_trades(market, to, count, cursor, days_ago)
+
+
+class CandleService:
+    """Upbit 캔들 조회 유스케이스."""
+
+    def __init__(self, candle_client: CandleClient):
+        self._candle_client = candle_client
+
+    def get_seconds_candles(self, market: str, to: str | None = None, count: int = 1):
+        return self._candle_client.get_seconds_candles(market, to, count)
+
+    def get_minute_candles(
+        self, unit: int, market: str, to: str | None = None, count: int = 1
+    ):
+        return self._candle_client.get_minute_candles(unit, market, to, count)
+
+    def get_day_candles(
+        self,
+        market: str,
+        to: str | None = None,
+        count: int = 1,
+        converting_price_unit: str | None = None,
+    ):
+        return self._candle_client.get_day_candles(
+            market, to, count, converting_price_unit
+        )
+
+    def get_week_candles(self, market: str, to: str | None = None, count: int = 1):
+        return self._candle_client.get_week_candles(market, to, count)
+
+    def get_month_candles(self, market: str, to: str | None = None, count: int = 1):
+        return self._candle_client.get_month_candles(market, to, count)
+
+    def get_year_candles(self, market: str, to: str | None = None, count: int = 1):
+        return self._candle_client.get_year_candles(market, to, count)
