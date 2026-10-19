@@ -8,3 +8,5 @@ app:
     api_key: ""
   krx:
     api_key: ""
+  upbit:
+    base_url: "https://api.upbit.com"

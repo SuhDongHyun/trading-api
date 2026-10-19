@@ -66,12 +66,19 @@ class KRXSetting(BaseModel):
     api_key: str
 
 
+class UpbitSetting(BaseModel):
+    """Upbit 공개 시세 API 접속 정보."""
+
+    base_url: str
+
+
 class AppSettings(BaseSettings):
     """환경변수, .env, config.yaml을 병합한 애플리케이션 설정."""
 
     kis: KISSetting
     fred: FredSetting
     krx: KRXSetting
+    upbit: UpbitSetting
 
     model_config = SettingsConfigDict(
         env_file=Path(__file__).parent / ".env",
