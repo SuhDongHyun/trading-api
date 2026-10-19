@@ -7,6 +7,7 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from bitcoin.interface.controller.quotation_controller import router as bitcoin_router
 from common.exchange_calendar import get_krx_calendar
 from container import Container
 from stock.domain.exceptions import AppError
@@ -35,6 +36,7 @@ app.include_router(account_router)
 app.include_router(stock_news_router)
 app.include_router(stock_quote_router)
 app.include_router(market_index_router)
+app.include_router(bitcoin_router)
 
 
 def warm_up_krx_calendar():

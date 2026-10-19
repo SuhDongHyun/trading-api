@@ -12,6 +12,7 @@ trading-api는 외부 시세·시장 데이터를 조회해 FastAPI 응답으로
 | FRED | VIX 시계열 | fredapi |
 | CNN Fear & Greed | 공포탐욕지수 | fear-and-greed 라이브러리 |
 | KRX Open API | VKOSPI | requests |
+| Upbit Quotation API | 페어·현재가·호가·체결 | 공개 REST API, requests |
 | FinanceDataReader | 국내 상장 종목 목록 | 라이브러리 |
 | exchange-calendars | KRX 거래일 계산 | XKRX 캘린더와 프로세스 캐시 |
 
@@ -23,9 +24,10 @@ trading-api는 외부 시세·시장 데이터를 조회해 FastAPI 응답으로
 - stock/service는 계좌, 종목 시세, 뉴스, 시장 지표 유스케이스를 조합합니다. stock/service/indicator는 이동평균·RSI·MACD 계산과 일봉 조회 구간/warm-up 계산을 담당합니다. 날짜 구간 계산은 KRX 캘린더를 사용합니다.
 - stock/infra는 외부 연동 어댑터를 둡니다. infra/kis에는 계좌·시세·뉴스·국내 지수·해외 지수 어댑터, 공통 HTTP client, 토큰 관리자, rate limiter와 조회 유틸이 있습니다. infra/krx의 KRXClient는 종목 목록과 VKOSPI 포트를 구현합니다. infra/fred는 VIX, infra/cnn은 공포탐욕지수를 담당합니다.
 - stock/interface/controller는 FastAPI 라우터, stock/interface/schema는 Pydantic 요청·응답 모델을 둡니다.
+- bitcoin/domain은 Upbit 페어·현재가·호가·체결 dataclass와 역할별 포트를 둡니다. bitcoin/service는 조회 유스케이스, bitcoin/infra/upbit은 공개 REST 어댑터·HTTP client·그룹별 rate limiter, bitcoin/interface는 `/bitcoin` 라우터와 schema를 둡니다.
 - tests는 외부 호출을 대역(Mock/Fake)으로 바꾸는 단위 테스트와 TestClient 기반 API 테스트를 포함합니다.
 
-stock 패키지에는 __init__.py가 없어 Python namespace package로 동작합니다. 현재 pytest와 Ruff 실행에 문제는 없지만, 패키징·타입 검사 도구를 추가할 때 다시 확인할 수 있습니다.
+stock과 bitcoin 패키지에는 __init__.py가 없어 Python namespace package로 동작합니다. 현재 pytest와 Ruff 실행에 문제는 없지만, 패키징 도구를 추가할 때 다시 확인할 수 있습니다.
 
 ## 3. 계층과 의존 방향
 
@@ -43,12 +45,14 @@ config.py의 AppSettings는 다음 순서로 설정을 합칩니다.
 4. config.yaml
 5. 파일 secret
 
-중첩 환경변수 구분자는 __입니다. .env 경로는 config.py가 있는 디렉터리를 기준으로 합니다. 계좌번호는 KIS__ACCOUNT_NUM 환경변수 또는 .env에서 받으며 기본값은 빈 문자열입니다. 따라서 계좌번호 없이도 앱은 시작할 수 있고, 계좌 조회를 하려면 값을 설정해야 합니다. config.yaml에는 기본 KIS 주소와 계좌 상품 코드 등 비밀이 아닌 설정이 있습니다.
+중첩 환경변수 구분자는 __입니다. .env 경로는 config.py가 있는 디렉터리를 기준으로 합니다. 계좌번호는 KIS__ACCOUNT_NUM 환경변수 또는 .env에서 받으며 기본값은 빈 문자열입니다. 따라서 계좌번호 없이도 앱은 시작할 수 있고, 계좌 조회를 하려면 값을 설정해야 합니다. config.yaml에는 기본 KIS 주소와 계좌 상품 코드 등 비밀이 아닌 설정이 있습니다. Upbit는 공개 Quotation API만 사용하며 base URL은 `app.upbit.base_url` 또는 `UPBIT__BASE_URL`로 지정합니다. Access key와 secret key 설정은 없습니다.
 
 Container는 controller 패키지를 wiring_config로 자동 연결합니다. main.py에서 별도의 container.wire 호출은 하지 않습니다.
 
 - KisTokenManager, KisRateLimiter, KisHttpClient는 Singleton입니다. 토큰과 호출 제한 상태를 프로세스 안에서 공유합니다.
+- UpbitRateLimiter와 UpbitHttpClient는 Singleton입니다. 그룹별 호출 제한 상태를 프로세스 안에서 공유하며 인증 헤더와 Origin 헤더를 전송하지 않습니다.
 - KIS 역할별 어댑터는 Factory이며 같은 KisHttpClient를 주입받습니다.
+- Upbit 역할별 어댑터와 서비스는 Factory이며 같은 UpbitHttpClient를 주입받습니다.
 - KRXClient는 Singleton으로 만들어 종목 목록 포트와 VKOSPI 포트가 같은 인스턴스를 사용합니다.
 - 서비스와 나머지 외부 client는 Factory입니다.
 
@@ -83,7 +87,13 @@ MarketIndexService가 기능별 포트를 직접 호출합니다. KOSPI/KOSDAQ �
 | 종목 계좌·시세·뉴스 | AccountClient, StockQuoteClient, NewsClient | 역할별 KIS 어댑터 |
 | 국내·해외 시장 지수 | DomesticMarketIndexClient, OverseasMarketIndexClient | 역할별 KIS 어댑터 |
 
-### 5.4 입력 검증과 오류 응답
+### 5.4 Upbit Quotation API
+
+요청은 `/bitcoin` controller → 역할별 service → domain port → Upbit 어댑터 → 공통 `UpbitHttpClient` 흐름으로 처리됩니다. 어댑터는 응답 JSON을 dataclass로 바꾸고 controller가 Pydantic 응답 schema로 변환합니다. `market` 목록은 쉼표로 합쳐 Upbit에 전달합니다.
+
+Upbit의 Quotation REST 호출 제한은 IP 기준 그룹별 초당 10회입니다. 페어 목록은 `market`, 체결은 `trade`, 두 현재가 API는 공유 `ticker`, 호가와 호가 정책은 공유 `orderbook` 그룹을 사용합니다. 공개 API를 사용하므로 인증·Origin 헤더를 붙이지 않습니다. 404는 `NotFoundError`(404), 429·418 등 나머지 Upbit HTTP 오류는 `ExternalApiError`(502)로 변환합니다. 진단 정보는 오류 본문의 이름과 메시지를 포함하고 URL query는 기록하지 않습니다.
+
+### 5.5 입력 검증과 오류 응답
 
 Pydantic 스키마가 날짜 형식과 실제 날짜, 날짜 순서, 지표 window 등 요청 값을 검증합니다. 잘못된 입력은 FastAPI 기본 422 응답입니다. AppError 계층은 NotFoundError(404)와 ExternalApiError(502)를 제공하고 main.py의 handler가 상태 코드와 안전한 진단 로그를 기록합니다. requests.RequestException도 502로 변환합니다.
 
@@ -109,6 +119,12 @@ Pydantic 스키마가 날짜 형식과 실제 날짜, 날짜 순서, 지표 wind
 | POST | /market-index/sp500-index | S&P 500 |
 | POST | /market-index/kospi-index | KOSPI |
 | POST | /market-index/kosdaq-index | KOSDAQ |
+| POST | /bitcoin/trading-pairs | 지원 페어 목록 및 선택적 상세 정보 |
+| POST | /bitcoin/ticker | 페어별 현재가 |
+| POST | /bitcoin/ticker/quote | 호가 통화별 현재가 |
+| POST | /bitcoin/orderbook | 실시간 호가 |
+| POST | /bitcoin/orderbook/instruments | 페어별 호가 단위 정책 |
+| POST | /bitcoin/trades | 최근 페어 체결 내역 |
 
 국채 maturity 값은 korea-1y, korea-3y, korea-5y, korea-10y, us-1y, us-10y입니다.
 

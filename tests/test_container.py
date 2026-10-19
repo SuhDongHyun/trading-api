@@ -24,3 +24,32 @@ def test_kis_transports_are_shared_across_all_adapters():
     assert http_client._rate_limiter is container.kis_rate_limiter()
     assert market_service.stock_list_client is container.krx_client()
     assert market_service.vkospi_client is container.krx_client()
+
+
+def test_upbit_transport_and_limiter_are_shared_across_adapters():
+    """Upbit 공개 API client와 그룹별 limiter는 singleton으로 공유한다."""
+
+    container = main.container
+    http_client = container.upbit_http_client()
+
+    service_adapters = [
+        container.trading_pair_service()._trading_pair_client,
+        container.ticker_service()._ticker_client,
+        container.quote_ticker_service()._ticker_client,
+        container.orderbook_service()._orderbook_client,
+        container.orderbook_instrument_service()._instrument_client,
+        container.trade_service()._trade_client,
+    ]
+    assert all(adapter._http_client is http_client for adapter in service_adapters)
+    assert all(
+        adapter._http_client is http_client
+        for adapter in (
+            container.upbit_trading_pair_client(),
+            container.upbit_ticker_client(),
+            container.upbit_quote_ticker_client(),
+            container.upbit_orderbook_client(),
+            container.upbit_orderbook_instrument_client(),
+            container.upbit_trade_client(),
+        )
+    )
+    assert http_client._rate_limiter is container.upbit_rate_limiter()

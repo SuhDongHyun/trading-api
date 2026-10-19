@@ -1,6 +1,24 @@
 from dependency_injector import containers, providers
 
 from config import settings
+from bitcoin.infra.upbit.upbit_http_client import UpbitHttpClient
+from bitcoin.infra.upbit.upbit_quotation_clients import (
+    UpbitOrderbookClient,
+    UpbitOrderbookInstrumentClient,
+    UpbitQuoteTickerClient,
+    UpbitTickerClient,
+    UpbitTradingPairClient,
+    UpbitTradeClient,
+)
+from bitcoin.infra.upbit.upbit_rate_limiter import UpbitRateLimiter
+from bitcoin.service.quotation_services import (
+    OrderbookInstrumentService,
+    OrderbookService,
+    QuoteTickerService,
+    TickerService,
+    TradingPairService,
+    TradeService,
+)
 from stock.infra.cnn.fear_greed_client import CnnFearGreedClient
 from stock.infra.fred.fred_client import FredClient
 from stock.infra.kis.kis_account_client import KisAccountClient
@@ -26,7 +44,7 @@ class Container(containers.DeclarativeContainer):
     """공유 KIS 전송 구성요소와 요청별 어댑터·서비스를 묶는다."""
 
     wiring_config = containers.WiringConfiguration(
-        packages=["stock.interface.controller"]
+        packages=["stock.interface.controller", "bitcoin.interface.controller"]
     )
 
     kis_settings = providers.Object(settings.kis)
@@ -37,6 +55,33 @@ class Container(containers.DeclarativeContainer):
         kis_settings=kis_settings,
         token_manager=kis_token_manager,
         rate_limiter=kis_rate_limiter,
+    )
+
+    upbit_settings = providers.Object(settings.upbit)
+    upbit_rate_limiter = providers.Singleton(UpbitRateLimiter)
+    upbit_http_client = providers.Singleton(
+        UpbitHttpClient,
+        upbit_settings=upbit_settings,
+        rate_limiter=upbit_rate_limiter,
+    )
+
+    upbit_trading_pair_client = providers.Factory(
+        UpbitTradingPairClient, http_client=upbit_http_client
+    )
+    upbit_ticker_client = providers.Factory(
+        UpbitTickerClient, http_client=upbit_http_client
+    )
+    upbit_quote_ticker_client = providers.Factory(
+        UpbitQuoteTickerClient, http_client=upbit_http_client
+    )
+    upbit_orderbook_client = providers.Factory(
+        UpbitOrderbookClient, http_client=upbit_http_client
+    )
+    upbit_orderbook_instrument_client = providers.Factory(
+        UpbitOrderbookInstrumentClient, http_client=upbit_http_client
+    )
+    upbit_trade_client = providers.Factory(
+        UpbitTradeClient, http_client=upbit_http_client
     )
 
     kis_account_client = providers.Factory(
@@ -66,6 +111,21 @@ class Container(containers.DeclarativeContainer):
     stock_quote_service = providers.Factory(
         StockQuoteService, quote_client=kis_stock_quote_client
     )
+    trading_pair_service = providers.Factory(
+        TradingPairService, trading_pair_client=upbit_trading_pair_client
+    )
+    ticker_service = providers.Factory(TickerService, ticker_client=upbit_ticker_client)
+    quote_ticker_service = providers.Factory(
+        QuoteTickerService, ticker_client=upbit_quote_ticker_client
+    )
+    orderbook_service = providers.Factory(
+        OrderbookService, orderbook_client=upbit_orderbook_client
+    )
+    orderbook_instrument_service = providers.Factory(
+        OrderbookInstrumentService,
+        instrument_client=upbit_orderbook_instrument_client,
+    )
+    trade_service = providers.Factory(TradeService, trade_client=upbit_trade_client)
     market_index_service = providers.Factory(
         MarketIndexService,
         domestic_market_client=kis_domestic_market_index_client,
