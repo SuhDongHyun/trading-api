@@ -149,3 +149,16 @@ uv sync --group notebook
 uv run pytest
 uv run ruff check
 ```
+
+## 배포
+
+`main`에 머지되면 GitHub Actions(`.github/workflows/deploy.yml`)가 테스트 후 이미지를 `ghcr.io/suhdonghyun/trading-api`에 푸시하고, 서버에 SSH로 접속해 `docker compose`로 컨테이너를 교체합니다. 서버의 `~/trading-api`는 이 저장소의 clone이며 `.env`는 서버에만 둡니다.
+
+필요한 저장소 Secrets는 `OCI_HOST`, `OCI_USER`, `OCI_SSH_KEY`, `OCI_KNOWN_HOSTS`입니다.
+
+로컬에서 이미지로 실행하려면 다음과 같이 합니다.
+
+```bash
+docker build -t ghcr.io/suhdonghyun/trading-api:local .
+IMAGE_TAG=local docker compose up -d
+```

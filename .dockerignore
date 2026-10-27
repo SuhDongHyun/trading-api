@@ -1,0 +1,17 @@
+.git
+.github
+.venv
+.env
+.envrc
+**/__pycache__
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.vscode
+.agents
+notebook
+report
+tests
+compose.yaml
+Dockerfile
+.dockerignore
