@@ -69,7 +69,7 @@ jobs:
       # 서버의 git clone에서 compose.yaml을 갱신하고, .env는 서버에만 둔다.
       - name: 새 이미지로 교체
         run: |
-          ssh "$OCI_USER@$OCI_HOST" IMAGE_TAG="$GITHUB_SHA" bash -s <<'EOF'
+          ssh "$OCI_USER@$OCI_HOST" IMAGE="$IMAGE" IMAGE_TAG="$GITHUB_SHA" bash -s <<'EOF'
           set -euo pipefail
           cd ~/trading-api
           git fetch --quiet origin main
@@ -82,5 +82,12 @@ jobs:
             sleep 2
           done
           curl -fsS -o /dev/null http://localhost:9999/docs
+          # SHA 태그는 prune 대상이 아니므로, 현재와 롤백용 직전 이미지 하나만 남기고 직접 지운다.
+          docker image ls "$IMAGE" --format '{{.CreatedAt}}|{{.Tag}}' \
+            | sort -r | cut -d'|' -f2 \
+            | grep -vx -e "$IMAGE_TAG" -e latest \
+            | tail -n +2 \
+            | xargs -r -I{} docker rmi "$IMAGE:{}" \
+            || echo "warning: 이전 이미지 정리 실패"
           docker image prune -f
           EOF
