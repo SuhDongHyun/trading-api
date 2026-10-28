@@ -74,10 +74,11 @@ jobs:
           cd ~/trading-api
           git fetch --quiet origin main
           git reset --hard origin/main
-          docker compose pull
-          docker compose up -d --remove-orphans
+          docker compose pull --quiet
+          # 시작에 실패한 채 남은 컨테이너를 재사용하지 않도록 항상 새로 만든다.
+          docker compose up -d --remove-orphans --force-recreate
           for _ in $(seq 1 30); do
-            curl -fsS -o /dev/null http://localhost:9999/docs && break
+            curl -fs -o /dev/null http://localhost:9999/docs && break
             sleep 2
           done
           curl -fsS -o /dev/null http://localhost:9999/docs
