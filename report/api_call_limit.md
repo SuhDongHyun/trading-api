@@ -32,6 +32,10 @@ controller
 
 `uvicorn --workers 2`처럼 여러 worker를 띄우거나 API 서버 인스턴스를 여러 개 운영하면 프로세스마다 별도 limiter가 생성된다. 그런 운영 방식이 필요해지면 Redis 등 공유 저장소 기반 limiter로 전환해야 한다.
 
+## KIS 일시적 오류 재시도
+
+KIS 응답 코드 `EGW00316`, `OPSQ1002`, `EGW00001`, `EGW00301`, `OPSQ0010`, `OPSQ0011`은 0.3초와 0.6초 간격으로 최대 2회 재시도한다. 재시도 요청도 매번 공통 limiter를 통과한다. 세 번의 시도 후에도 실패하면 HTTP 503을 반환하며, 그 외 오류 코드는 기존 HTTP 502 동작을 유지한다.
+
 ## 검증
 
 `tests/test_kis_rate_limit.py`와 `tests/test_min_interval_throttle.py`에서 다음을 확인한다.

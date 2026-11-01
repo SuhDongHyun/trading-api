@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from requests import Response
 
 import main
-from stock.domain.exceptions import ExternalApiError
+from stock.domain.exceptions import ExternalApiError, ExternalApiUnavailableError
 from stock.service.stock_quote_service import StockQuoteService
 
 
@@ -117,6 +117,21 @@ def test_app_error_uses_its_status_code_and_logs_diagnostics(caplog):
     assert response.json() == {"detail": "KIS API 요청에 실패했습니다."}
     assert "diagnostic=KIS msg_cd=X" in caplog.text
     assert caplog.text.count("Application error") == 1
+
+
+def test_external_api_unavailable_error_maps_to_503(caplog):
+    message = "외부 API가 일시적으로 응답하지 않습니다. 잠시 후 다시 시도해 주세요."
+    error = ExternalApiUnavailableError(message, diagnostic="KIS attempts=3")
+    service = StockQuoteService(FailingQuoteClient(error))
+    with main.container.stock_quote_service.override(providers.Object(service)):
+        with caplog.at_level(logging.ERROR):
+            response = TestClient(main.app).post(
+                "/stock_quote/daily", json=daily_quote_payload()
+            )
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": message}
+    assert "diagnostic=KIS attempts=3" in caplog.text
 
 
 def test_invalid_ema_window_is_rejected_by_actual_request_schema():
