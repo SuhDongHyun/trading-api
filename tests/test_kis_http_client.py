@@ -19,7 +19,7 @@ def make_response(status_code: int, url: str, body: str) -> Response:
     return response
 
 
-def make_client(get=None, headers=None, responses=None):
+def make_client(get=None, headers=None, responses=None, sleep=None):
     token_manager = Mock()
     token_manager.auth_headers.side_effect = headers or [
         {"authorization": "Bearer token", "tr_id": "TEST"}
@@ -36,6 +36,7 @@ def make_client(get=None, headers=None, responses=None):
         token_manager=token_manager,
         rate_limiter=rate_limiter,
         get=get or Mock(side_effect=responses),
+        sleep=sleep or Mock(),
     )
     return http_client, token_manager, rate_limiter
 
@@ -154,3 +155,107 @@ def test_http_get_uses_timeout_and_propagates_connection_errors():
         )
 
     assert transport.call_args.kwargs["timeout"] == KIS_REQUEST_TIMEOUT_SECONDS
+
+
+def test_http_get_retries_http_500_transient_error_then_succeeds():
+    failed = make_response(
+        500,
+        "https://openapi.koreainvestment.com:9443/uapi/test",
+        '{"rt_cd":"1","msg_cd":"EGW00316","msg1":"retry"}',
+    )
+    succeeded = make_response(
+        200,
+        "https://openapi.koreainvestment.com:9443/uapi/test",
+        '{"rt_cd":"0","output":[]}',
+    )
+    transport = Mock(side_effect=[failed, succeeded])
+    sleep = Mock()
+    http_client, _, rate_limiter = make_client(get=transport, sleep=sleep)
+
+    assert http_client.get(path="/uapi/test", tr_id="FHKST01011800") is succeeded
+
+    sleep.assert_called_once_with(0.3)
+    assert rate_limiter.acquire.call_count == 2
+    assert transport.call_count == 2
+
+
+def test_http_get_retries_kis_business_error_twice_then_succeeds():
+    failed = make_response(
+        200,
+        "https://openapi.koreainvestment.com:9443/uapi/test",
+        '{"rt_cd":"1","msg_cd":"OPSQ1002","msg1":"SESSION FULL"}',
+    )
+    succeeded = make_response(
+        200,
+        "https://openapi.koreainvestment.com:9443/uapi/test",
+        '{"rt_cd":"0","output":[]}',
+    )
+    transport = Mock(side_effect=[failed, failed, succeeded])
+    sleep = Mock()
+    http_client, _, rate_limiter = make_client(get=transport, sleep=sleep)
+
+    assert http_client.get(path="/uapi/test", tr_id="FHKST01011800") is succeeded
+
+    assert sleep.call_args_list == [call(0.3), call(0.6)]
+    assert rate_limiter.acquire.call_count == 3
+    assert transport.call_count == 3
+
+
+def test_http_get_raises_503_after_transient_retries_are_exhausted():
+    failed = make_response(
+        500,
+        "https://openapi.koreainvestment.com:9443/uapi/test",
+        '{"rt_cd":"1","msg_cd":"EGW00316","msg1":"retry"}',
+    )
+    transport = Mock(side_effect=[failed, failed, failed])
+    sleep = Mock()
+    http_client, _, rate_limiter = make_client(get=transport, sleep=sleep)
+
+    with pytest.raises(ExternalApiError) as error:
+        http_client.get(path="/uapi/test", tr_id="FHKST01011800")
+
+    assert error.value.status_code == 503
+    assert "path=/uapi/test" in error.value.diagnostic
+    assert "tr_id=FHKST01011800" in error.value.diagnostic
+    assert "EGW00316" in error.value.diagnostic
+    assert "status=500" in error.value.diagnostic
+    assert "attempts=3" in error.value.diagnostic
+    assert sleep.call_args_list == [call(0.3), call(0.6)]
+    assert rate_limiter.acquire.call_count == 3
+    assert transport.call_count == 3
+
+
+def test_http_get_does_not_retry_non_transient_http_error():
+    failed = make_response(
+        500,
+        "https://openapi.koreainvestment.com:9443/uapi/test",
+        '{"rt_cd":"1","msg_cd":"EGW00201","msg1":"request limit"}',
+    )
+    transport = Mock(return_value=failed)
+    sleep = Mock()
+    http_client, _, rate_limiter = make_client(get=transport, sleep=sleep)
+
+    with pytest.raises(HTTPError):
+        http_client.get(path="/uapi/test", tr_id="FHKST01011800")
+
+    sleep.assert_not_called()
+    assert rate_limiter.acquire.call_count == 1
+    assert transport.call_count == 1
+
+
+def test_http_get_does_not_retry_non_json_http_error_body():
+    failed = make_response(
+        500,
+        "https://openapi.koreainvestment.com:9443/uapi/test",
+        "temporarily unavailable",
+    )
+    transport = Mock(return_value=failed)
+    sleep = Mock()
+    http_client, _, rate_limiter = make_client(get=transport, sleep=sleep)
+
+    with pytest.raises(HTTPError):
+        http_client.get(path="/uapi/test", tr_id="FHKST01011800")
+
+    sleep.assert_not_called()
+    assert rate_limiter.acquire.call_count == 1
+    assert transport.call_count == 1

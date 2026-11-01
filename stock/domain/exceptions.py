@@ -21,3 +21,9 @@ class ExternalApiError(AppError):
     """외부 API가 사용할 수 없는 응답을 반환한 경우에 사용한다."""
 
     status_code = 502
+
+
+class ExternalApiUnavailableError(ExternalApiError):
+    """외부 API의 일시적 오류가 재시도 후에도 계속된 경우에 사용한다."""
+
+    status_code = 503
