@@ -50,6 +50,7 @@ config.py의 AppSettings는 다음 순서로 설정을 합칩니다.
 Container는 controller 패키지를 wiring_config로 자동 연결합니다. main.py에서 별도의 container.wire 호출은 하지 않습니다.
 
 - KisTokenManager, KisRateLimiter, KisHttpClient는 Singleton입니다. 토큰과 호출 제한 상태를 프로세스 안에서 공유합니다.
+- 국내 종목 일봉 캐시 래퍼는 Singleton으로 공유하며, 같은 종목의 10초 이내 겹치는 구간과 동시 조회를 재사용합니다.
 - UpbitRateLimiter와 UpbitHttpClient는 Singleton입니다. 그룹별 호출 제한 상태를 프로세스 안에서 공유하며 인증 헤더와 Origin 헤더를 전송하지 않습니다.
 - KIS 역할별 어댑터는 Factory이며 같은 KisHttpClient를 주입받습니다.
 - Upbit 역할별 어댑터와 서비스는 Factory이며 같은 UpbitHttpClient를 주입받습니다.
