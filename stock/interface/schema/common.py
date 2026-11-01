@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+STOCK_CODE_PATTERN = r"^[0-9A-Z]{6}$"
+
 
 class RequestModel(BaseModel):
     """요청에 정의되지 않은 필드가 들어오면 거부한다."""

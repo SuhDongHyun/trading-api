@@ -2,6 +2,7 @@ import unittest
 
 from pydantic import ValidationError
 
+from stock.interface.schema.stock_news import StockNewsRequest
 from stock.interface.schema.stock_quote import (
     HistoricalStockQuoteRequest,
     MacdRequest,
@@ -135,6 +136,45 @@ class StockQuoteSchemaTest(unittest.TestCase):
     def test_historical_dates_are_required(self):
         with self.assertRaises(ValidationError):
             HistoricalStockQuoteRequest()
+
+    def test_stock_code_requires_six_uppercase_letters_or_digits(self):
+        request_classes = [
+            StockQuoteRequest,
+            HistoricalStockQuoteRequest,
+            MovingAverageRequest,
+            RsiRequest,
+            RsiSignalRequest,
+            MacdRequest,
+            MacdSignalRequest,
+            StockNewsRequest,
+        ]
+        invalid_codes = ["", "00593", "0059300", "005930 ", "abc123", "00-930"]
+
+        for request_class in request_classes:
+            for code in invalid_codes:
+                kwargs = {"code": code}
+                if issubclass(request_class, HistoricalStockQuoteRequest):
+                    kwargs.update(start_date="20260401", end_date="20260407")
+                elif request_class is StockNewsRequest:
+                    kwargs["search_date"] = "20260401"
+
+                with self.subTest(request_class=request_class, code=code):
+                    with self.assertRaises(ValidationError):
+                        request_class(**kwargs)
+
+    def test_stock_code_accepts_numeric_and_new_alphanumeric_formats(self):
+        request_classes = [StockQuoteRequest, HistoricalStockQuoteRequest, StockNewsRequest]
+
+        for request_class in request_classes:
+            for code in ["005930", "0126Z0"]:
+                kwargs = {"code": code}
+                if issubclass(request_class, HistoricalStockQuoteRequest):
+                    kwargs.update(start_date="20260401", end_date="20260407")
+                elif request_class is StockNewsRequest:
+                    kwargs["search_date"] = "20260401"
+
+                with self.subTest(request_class=request_class, code=code):
+                    self.assertEqual(request_class(**kwargs).code, code)
 
 
 if __name__ == "__main__":

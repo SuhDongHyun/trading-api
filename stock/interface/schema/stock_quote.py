@@ -1,7 +1,12 @@
 from pydantic import Field
 
 from stock.domain.indicator import Signal
-from stock.interface.schema.common import DateRangeRequest, RequestModel, ResponseModel
+from stock.interface.schema.common import (
+    STOCK_CODE_PATTERN,
+    DateRangeRequest,
+    RequestModel,
+    ResponseModel,
+)
 
 
 class StockQuoteRequest(RequestModel):
@@ -11,7 +16,9 @@ class StockQuoteRequest(RequestModel):
         default="J", description="시장 구분 코드. 국내 주식은 J를 사용합니다."
     )
     code: str = Field(
-        default="005930", description="종목 코드. 기본값은 삼성전자 005930입니다."
+        default="005930",
+        pattern=STOCK_CODE_PATTERN,
+        description="종목 코드. 영문 대문자·숫자 6자리이며 기본값은 삼성전자 005930입니다.",
     )
 
 
