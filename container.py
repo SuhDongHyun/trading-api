@@ -22,6 +22,7 @@ from bitcoin.service.quotation_services import (
     TradeService,
 )
 from stock.infra.cnn.fear_greed_client import CnnFearGreedClient
+from stock.infra.cache.daily_price_cache import DailyPriceCache
 from stock.infra.fred.fred_client import FredClient
 from stock.infra.kis.kis_account_client import KisAccountClient
 from stock.infra.kis.kis_domestic_market_index_client import (
@@ -95,6 +96,9 @@ class Container(containers.DeclarativeContainer):
     kis_stock_quote_client = providers.Factory(
         KisStockQuoteClient, http_client=kis_http_client
     )
+    daily_price_cache_client = providers.Singleton(
+        DailyPriceCache, client=kis_stock_quote_client
+    )
     kis_news_client = providers.Factory(KisNewsClient, http_client=kis_http_client)
     kis_domestic_market_index_client = providers.Factory(
         KisDomesticMarketIndexClient, http_client=kis_http_client
@@ -114,7 +118,7 @@ class Container(containers.DeclarativeContainer):
         StockNewsService, news_client=kis_news_client
     )
     stock_quote_service = providers.Factory(
-        StockQuoteService, quote_client=kis_stock_quote_client
+        StockQuoteService, quote_client=daily_price_cache_client
     )
     trading_pair_service = providers.Factory(
         TradingPairService, trading_pair_client=upbit_trading_pair_client
