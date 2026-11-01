@@ -1,14 +1,21 @@
 from datetime import datetime
 from pydantic import Field, field_validator
 
-from stock.interface.schema.common import RequestModel, ResponseModel, validate_yyyymmdd
+from stock.interface.schema.common import (
+    STOCK_CODE_PATTERN,
+    RequestModel,
+    ResponseModel,
+    validate_yyyymmdd,
+)
 
 
 class StockNewsRequest(RequestModel):
     """뉴스 조회 요청 파라미터."""
 
     code: str = Field(
-        default="005930", description="종목 코드. 기본값은 삼성전자 005930입니다."
+        default="005930",
+        pattern=STOCK_CODE_PATTERN,
+        description="종목 코드. 영문 대문자·숫자 6자리이며 기본값은 삼성전자 005930입니다.",
     )
     search_date: str = Field(
         pattern=r"^\d{8}$",

@@ -92,6 +92,39 @@ def test_stock_quote_route_requires_dates_and_forbids_removed_fields():
     assert removed_period.status_code == 422
 
 
+def test_invalid_stock_codes_are_rejected_before_services_are_called():
+    stock_quote_service = Mock()
+    stock_news_service = Mock()
+
+    with main.container.stock_quote_service.override(
+        providers.Object(stock_quote_service)
+    ):
+        with main.container.stock_news_service.override(
+            providers.Object(stock_news_service)
+        ):
+            with TestClient(main.app) as client:
+                quote = client.post("/stock_quote", json={"code": ""})
+                daily = client.post(
+                    "/stock_quote/daily",
+                    json={
+                        "code": "",
+                        "start_date": "20260401",
+                        "end_date": "20260407",
+                    },
+                )
+                news = client.post(
+                    "/stock_news",
+                    json={"code": "", "search_date": "20260401"},
+                )
+
+    assert quote.status_code == 422
+    assert daily.status_code == 422
+    assert news.status_code == 422
+    stock_quote_service.get_stock_info.assert_not_called()
+    stock_quote_service.get_daily_stock_prices.assert_not_called()
+    stock_news_service.get_total_news.assert_not_called()
+
+
 def test_indicator_routes_serialize_aliased_values_with_response_field_names():
     stock_quote_service = Mock()
     stock_quote_service.get_moving_average.return_value = [
