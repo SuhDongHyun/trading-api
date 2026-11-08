@@ -24,6 +24,34 @@ from stock.interface.controller.market_index_controller import (
 
 logger = logging.getLogger(__name__)
 
+LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s - %(message)s"
+HEALTH_PATH = "/health"
+
+
+class HealthCheckAccessFilter(logging.Filter):
+    """Docker HEALTHCHECK가 주기적으로 남기는 access log를 제외한다."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if isinstance(args, tuple) and len(args) >= 3:
+            return str(args[2]).split("?", 1)[0] != HEALTH_PATH
+        return True
+
+
+def configure_logging() -> None:
+    """앱 로거가 시간·레벨·로거 이름과 함께 INFO 이상을 출력하게 한다.
+
+    uvicorn 로거는 자체 handler를 쓰고 root로 전파하지 않으므로 중복 출력되지 않는다.
+    """
+
+    logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
+    access_logger = logging.getLogger("uvicorn.access")
+    if not any(isinstance(f, HealthCheckAccessFilter) for f in access_logger.filters):
+        access_logger.addFilter(HealthCheckAccessFilter())
+
+
+configure_logging()
+
 
 @asynccontextmanager
 async def lifespan(app):
@@ -37,6 +65,13 @@ app.include_router(stock_news_router)
 app.include_router(stock_quote_router)
 app.include_router(market_index_router)
 app.include_router(bitcoin_router)
+
+
+@app.get(HEALTH_PATH, include_in_schema=False)
+def health() -> dict[str, str]:
+    """프로세스가 요청을 처리할 수 있는지만 확인하며 외부 API는 호출하지 않는다."""
+
+    return {"status": "ok"}
 
 
 def warm_up_krx_calendar():

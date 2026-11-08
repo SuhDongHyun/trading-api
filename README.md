@@ -21,7 +21,7 @@ uv sync
 uv run python main.py
 ```
 
-서버는 기본적으로 `http://localhost:9999`에서 실행됩니다. FastAPI 문서는 `http://localhost:9999/docs`에서 확인할 수 있습니다.
+서버는 기본적으로 `http://localhost:9999`에서 실행됩니다. FastAPI 문서는 `http://localhost:9999/docs`에서 확인할 수 있습니다. 상태 확인은 `GET /health`를 사용하며, Docker 이미지의 `HEALTHCHECK`도 이 엔드포인트를 호출합니다.
 
 ## 설정
 

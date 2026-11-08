@@ -75,3 +75,24 @@ def test_upbit_http_client_maps_404_and_does_not_log_query_values():
     assert error.value.status_code == 404
     assert "market_not_found" in error.value.diagnostic
     assert "PRIVATE-VALUE" not in error.value.diagnostic
+
+
+def test_upbit_http_client_retries_network_error_once_through_rate_limiter():
+    from requests import ConnectionError
+
+    get = Mock(side_effect=[ConnectionError("reset"), FakeResponse(200, [])])
+    limiter = Mock()
+    sleep = Mock()
+    client = UpbitHttpClient(
+        upbit_settings=UpbitSetting(base_url="https://api.upbit.com"),
+        rate_limiter=limiter,
+        get=get,
+        sleep=sleep,
+    )
+
+    response = client.get("/v1/ticker", rate_limit_group="ticker")
+
+    assert response.status_code == 200
+    assert get.call_count == 2
+    assert limiter.acquire.call_count == 2
+    sleep.assert_called_once_with(0.5)

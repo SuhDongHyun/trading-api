@@ -1,8 +1,10 @@
+from time import sleep as time_sleep
 from typing import Callable
 
 import requests
 from requests import Response
 
+from common.network_retry import send_with_network_retry
 from config import UpbitSetting
 from stock.domain.exceptions import ExternalApiError, NotFoundError
 from bitcoin.infra.upbit.upbit_rate_limiter import UpbitRateLimiter
@@ -18,10 +20,12 @@ class UpbitHttpClient:
         upbit_settings: UpbitSetting,
         rate_limiter: UpbitRateLimiter,
         get: Callable[..., Response] | None = None,
+        sleep: Callable[[float], None] | None = None,
     ):
         self._settings = upbit_settings
         self._rate_limiter = rate_limiter
         self._get = get or requests.get
+        self._sleep = sleep or time_sleep
 
     def get(
         self,
@@ -31,11 +35,16 @@ class UpbitHttpClient:
     ) -> Response:
         """지정된 그룹 한도를 통과한 뒤 인증·Origin 헤더 없이 요청한다."""
 
-        self._rate_limiter.acquire(rate_limit_group)
-        response = self._get(
-            url=f"{self._settings.base_url}{path}",
-            params=params or {},
-            timeout=UPBIT_REQUEST_TIMEOUT_SECONDS,
+        def send() -> Response:
+            self._rate_limiter.acquire(rate_limit_group)
+            return self._get(
+                url=f"{self._settings.base_url}{path}",
+                params=params or {},
+                timeout=UPBIT_REQUEST_TIMEOUT_SECONDS,
+            )
+
+        response = send_with_network_retry(
+            send, label=f"Upbit {path}", sleep=self._sleep
         )
         if response.status_code >= 400:
             diagnostic = self._diagnostic(path, response)
