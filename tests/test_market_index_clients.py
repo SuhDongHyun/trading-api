@@ -74,6 +74,24 @@ def test_krx_client_requests_derivative_index_daily_prices(monkeypatch):
     }
 
 
+def test_krx_client_retries_derivative_index_timeout_once(monkeypatch):
+    from requests import ReadTimeout
+
+    response = Mock()
+    response.json.return_value = {"OutBlock_1": []}
+    requests_get = Mock(side_effect=[ReadTimeout("slow"), response])
+    monkeypatch.setattr(krx_client.requests, "get", requests_get)
+    throttle = Mock(spec=MinIntervalThrottle)
+    sleep = Mock()
+    client = KRXClient(api_key="test-key", min_interval_throttle=throttle, sleep=sleep)
+
+    assert client._get_derivative_index("20260625", "코스피 200 변동성지수") is None
+
+    assert requests_get.call_count == 2
+    assert throttle.acquire.call_count == 2
+    sleep.assert_called_once_with(0.5)
+
+
 def test_krx_client_throttles_sequential_vkospi_requests(monkeypatch):
     """거래일별 VKOSPI 조회 사이에 짧은 간격을 유지한다."""
 
@@ -103,7 +121,10 @@ def test_krx_client_throttles_sequential_vkospi_requests(monkeypatch):
         return response
 
     requests_get = Mock(
-        side_effect=[make_response("20260625", "19.5"), make_response("20260626", "20.0")]
+        side_effect=[
+            make_response("20260625", "19.5"),
+            make_response("20260626", "20.0"),
+        ]
     )
     monkeypatch.setattr(krx_client.requests, "get", requests_get)
     throttle = Mock(spec=MinIntervalThrottle)

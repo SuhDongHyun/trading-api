@@ -1,9 +1,13 @@
+from time import sleep as time_sleep
+from typing import Callable
+
 import requests
 import pandas as pd
 import FinanceDataReader as fdr
 
 from common.exchange_calendar import get_krx_calendar
 from common.min_interval_throttle import MinIntervalThrottle
+from common.network_retry import send_with_network_retry
 from stock.domain.stock import StockMetaInfo
 from stock.domain.market import VKospiIndex
 from stock.domain.port.korea_stock_list_client import KoreaStockListClient
@@ -20,8 +24,10 @@ class KRXClient(KoreaStockListClient, VkospiClient):
         api_key: str,
         *,
         min_interval_throttle: MinIntervalThrottle | None = None,
+        sleep: Callable[[float], None] | None = None,
     ):
         self._api_key = api_key
+        self._sleep = sleep or time_sleep
         self._min_interval_throttle = min_interval_throttle or MinIntervalThrottle(
             KRX_API_MIN_INTERVAL_SECONDS
         )
@@ -40,12 +46,17 @@ class KRXClient(KoreaStockListClient, VkospiClient):
     def _get_derivative_index(self, date: str, type: str) -> dict:
         """기준일의 KRX 파생상품지수 일별시세를 조회한다."""
 
-        self._min_interval_throttle.acquire()
-        res = requests.get(
-            "https://data-dbg.krx.co.kr/svc/apis/idx/drvprod_dd_trd",
-            params={"basDd": date},
-            headers={"AUTH_KEY": self._api_key},
-            timeout=10,
+        def send() -> requests.Response:
+            self._min_interval_throttle.acquire()
+            return requests.get(
+                "https://data-dbg.krx.co.kr/svc/apis/idx/drvprod_dd_trd",
+                params={"basDd": date},
+                headers={"AUTH_KEY": self._api_key},
+                timeout=10,
+            )
+
+        res = send_with_network_retry(
+            send, label="KRX drvprod_dd_trd", sleep=self._sleep
         )
         res.raise_for_status()
         items = res.json().get("OutBlock_1", [])

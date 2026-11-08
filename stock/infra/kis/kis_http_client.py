@@ -1,9 +1,12 @@
+import logging
 from time import sleep as time_sleep
 from typing import Callable
+from urllib.parse import urlsplit
 
 import requests
 from requests import Response
 
+from common.network_retry import send_with_network_retry
 from config import KISSetting
 from stock.domain.exceptions import ExternalApiError, ExternalApiUnavailableError
 from stock.infra.kis.kis_rate_limiter import KisRateLimiter
@@ -11,10 +14,23 @@ from stock.infra.kis.kis_token_manager import KisTokenManager
 
 KIS_REQUEST_TIMEOUT_SECONDS = 10
 KIS_EXPIRED_TOKEN_MSG_CODE = "EGW00123"
+KIS_RATE_LIMIT_MSG_CODE = "EGW00201"
 KIS_TRANSIENT_MSG_CODES = frozenset(
-    {"EGW00316", "OPSQ1002", "EGW00001", "EGW00301", "OPSQ0010", "OPSQ0011"}
+    {
+        "EGW00316",
+        "OPSQ1002",
+        "EGW00001",
+        "EGW00301",
+        "OPSQ0010",
+        "OPSQ0011",
+        KIS_RATE_LIMIT_MSG_CODE,
+    }
 )
 KIS_RETRY_DELAYS_SECONDS = (0.3, 0.6)
+# KIS 유량 제한은 초 단위 창으로 집계되므로 창이 넘어갈 만큼 기다린다.
+KIS_RATE_LIMIT_RETRY_DELAYS_SECONDS = (1.0, 1.0)
+
+logger = logging.getLogger(__name__)
 
 
 def _json_body(resp: Response) -> dict | None:
@@ -95,8 +111,13 @@ class KisHttpClient:
 
         retry_index = 0
         while is_transient_error_response(resp):
-            if retry_index >= len(KIS_RETRY_DELAYS_SECONDS):
-                body = _json_body(resp) or {}
+            body = _json_body(resp) or {}
+            delays = (
+                KIS_RATE_LIMIT_RETRY_DELAYS_SECONDS
+                if body.get("msg_cd") == KIS_RATE_LIMIT_MSG_CODE
+                else KIS_RETRY_DELAYS_SECONDS
+            )
+            if retry_index >= len(delays):
                 raise ExternalApiUnavailableError(
                     "외부 API가 일시적으로 응답하지 않습니다. 잠시 후 다시 시도해 주세요.",
                     diagnostic=(
@@ -106,7 +127,17 @@ class KisHttpClient:
                     ),
                 )
 
-            self._sleep(KIS_RETRY_DELAYS_SECONDS[retry_index])
+            logger.warning(
+                "KIS transient error, retrying path=%s tr_id=%s msg_cd=%s "
+                "status=%s attempt=%s delay=%s",
+                path,
+                tr_id,
+                body.get("msg_cd"),
+                resp.status_code,
+                request_count,
+                delays[retry_index],
+            )
+            self._sleep(delays[retry_index])
             resp = self._send_request(url, headers, params)
             request_count += 1
             retry_index += 1
@@ -132,12 +163,17 @@ class KisHttpClient:
         headers: dict[str, str],
         params: dict[str, str],
     ) -> Response:
-        """공유 호출 제한을 통과한 뒤 제한 시간 안에 KIS GET을 보낸다."""
+        """공유 호출 제한을 통과한 뒤 KIS GET을 보내고, 네트워크 오류는 1회 재시도한다."""
 
-        self._rate_limiter.acquire()
-        return self._get(
-            url=url,
-            headers=headers,
-            timeout=KIS_REQUEST_TIMEOUT_SECONDS,
-            params=params,
+        def send() -> Response:
+            self._rate_limiter.acquire()
+            return self._get(
+                url=url,
+                headers=headers,
+                timeout=KIS_REQUEST_TIMEOUT_SECONDS,
+                params=params,
+            )
+
+        return send_with_network_retry(
+            send, label=f"KIS {urlsplit(url).path}", sleep=self._sleep
         )
